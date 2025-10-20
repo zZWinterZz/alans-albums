@@ -1,0 +1,257 @@
+.navbar .nav-link{color:var(--text-primary);}
+.navbar .nav-link:hover{color:var(--link-accent);}
+.navbar .site-title{font-weight:600}
+/* Page background and base text color: let schemes control the page background */
+/* Fallbacks provided so the site remains readable if a scheme omits tokens */
+body{
+    background: var(--background, #ffffff) !important;
+    color: var(--text-primary, #111111) !important;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+}
+
+/* Ensure the main site container and its inner container inherit the page background
+   and allow surface elements (cards/pills) to use --card-surface as intended. */
+.site-container,
+.site-container .container,
+main,
+.content{
+    background: transparent; /* keep content canvas transparent so body controls background */
+}
+/* Ensure scheme colors override Bootstrap utility classes (like .text-white) */
+/* Bootstrap's .text-white uses !important; we replicate specificity and use !important
+    so theme variables control the visible colors inside our header and content. */
+.nav-surface .nav-link,
+.nav-left .nav-link,
+.nav-right .nav-link,
+.navbar .nav-link,
+.nav-right .dropdown-toggle,
+.cart-icon,
+.nav-surface,
+.site-container,
+.site-container a{
+    color: var(--text-primary) !important;
+}
+.nav-surface .nav-link:hover,
+.navbar .nav-link:hover,
+.site-container a:hover{
+    color: var(--link-accent) !important;
+}
+.btn-outline-light{border-color:rgba(255,255,255,0.6);color:white}
+.btn-outline-light:hover{color:var(--accent)}
+
+/* Nav row (flex-based) and centered logo */
+.navbar{position:relative;padding-top:0.25rem;padding-bottom:0.25rem;margin-top:25px}
+
+/* Logo sizing and crop */
+.logo-link{display:inline-block;width:112px;height:112px;overflow:hidden;border-radius:999px;border:4px solid rgba(255,255,255,0.14);background:var(--background);box-sizing:content-box;position:relative}
+.logo-img{width:100%;height:100%;object-fit:cover;object-position:50% 22%;display:block}
+
+/* Mini-nav spacing */
+.left-mini-nav .nav-link, .right-mini-nav .nav-link{padding-left:.5rem;padding-right:.5rem}
+
+/* Mobile collapsed menu visual */
+.bg-contrast{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.04)}
+
+/* Responsive logo sizes */
+@media (max-width: 991.98px){
+    .logo-link{margin-top:-10px}
+    
+}
+
+@media (max-width: 767.98px){
+    .logo-link{margin-top:-16px}
+    
+}
+
+/* Flex-based nav row */
+.nav-row{display:flex;align-items:center;justify-content:space-between}
+.nav-left,.nav-right{flex:1}
+.nav-center{flex:0 0 auto;text-align:center}
+
+/* ensure left/right mini-navs render horizontally */
+.nav-left .navbar-nav{flex-direction:row;align-items:center}
+.nav-left .navbar-nav .nav-item{margin-right:.5rem}
+/* right-side auth links */
+.nav-right{display:flex;align-items:center;justify-content:flex-end;position:relative}
+.nav-right .navbar-nav{flex-direction:row;align-items:center}
+.nav-right .navbar-nav .nav-item{margin-left:.4rem}
+
+/* Nav surface (pill) */
+.nav-surface{background:var(--card-surface);padding:4px 30px;border-radius:999px;display:inline-flex;align-items:center;gap:34px;box-shadow:0 6px 18px rgba(0,0,0,0.08);position:relative;min-width:440px}
+
+/* Make room for the logo overlap */
+.site-container{padding-top:3.75rem}
+
+/* place logo absolutely so it visually overlaps but doesn't increase nav height */
+.nav-center{position:relative}
+.nav-center .logo-link{position:absolute;left:50%;transform:translateX(-50%);top:-50px}
+
+@media (max-width: 991.98px){
+    .nav-center .logo-link{top:-40px}
+}
+
+@media (max-width: 767.98px){
+    .nav-center .logo-link{top:-32px}
+    .dropdown-toggle{margin-right: 10px;}
+}
+
+/* On small screens show only the user icon for the account dropdown */
+@media (max-width: 767.98px){
+    .account-label{display:none}
+    .dropdown-toggle .fa-icon{margin-right:0}
+    .dropdown-toggle{padding-left:8px;padding-right:8px}
+}
+
+/* Note: keep nav-surface min-width consistent across sizes so it doesn't shrink */
+
+/* Ensure dropdowns inside the right nav align to the right edge */
+.nav-right .dropdown-menu{right:0;left:auto;transform-origin:top right;z-index:3000}
+/* Use theme variables for dropdown background and items */
+.nav-right .dropdown-menu,
+.dropdown-menu{
+    background: var(--background) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+.dropdown-menu .dropdown-item{color:var(--text-primary) !important}
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus{
+    background: color-mix(in srgb, var(--link-accent) 18%, transparent) !important;
+    color:var(--text-primary) !important;
+}
+
+/* Account dropdown will use the shared .button-primary utility for styling */
+
+/* prevent nav links wrapping inside the pill */
+.nav-surface .nav-left .nav-link,
+.nav-surface .nav-right .nav-link { white-space:nowrap }
+
+/* Keep theme and buttons styling */
+.nav-content .nav-link{color:var(--text-primary);}
+.nav-content .nav-link:hover{color:var(--link-accent)}
+.nav-surface .navbar-toggler{border-color:rgba(255,255,255,0.08)}
+.nav-surface .btn-light{background:white;color:var(--link-accent)}
+
+/* cart icon next to user */
+.cart-icon svg{display:block;width:22px;height:22px}
+.cart-icon{display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px}
+.cart-icon:hover{background:rgba(255,255,255,0.06);text-decoration:none}
+
+
+
+/* Debug: viewport center guide lines (vertical + horizontal) */
+/* Toggle by adding/removing the `debug-center-guides` class on <body> */
+body.debug-center-guides::before,
+body.debug-center-guides::after{
+    content:"";
+    position:fixed;
+    left:50vw;
+    top:0;
+    transform:translateX(-50%);
+    pointer-events:none;
+    z-index:99999;
+}
+/* vertical line */
+body.debug-center-guides::before{
+    width:1px;
+    height:100vh;
+    background:rgba(255,0,0,0.15);
+}
+/* horizontal line - placed via a rotated pseudo-element */
+body.debug-center-guides::after{
+    width:100vw;
+    height:1px;
+    top:50vh;
+    left:0;
+    transform:none;
+    background:rgba(255,0,0,0.15);
+}
+/* small center dot */
+body.debug-center-guides .center-dot{
+    position:fixed;
+    left:50vw;
+    top:50vh;
+    transform:translate(-50%,-50%);
+    width:8px;
+    height:8px;
+    background:rgba(255,0,0,0.25);
+    border-radius:50%;
+    pointer-events:none;
+    z-index:100000;
+}
+
+/* Font Awesome icon sizing helpers */
+.fa-icon{font-size:18px;line-height:1;vertical-align:middle}
+.cart-icon .fa-icon{font-size:20px}
+
+/* Form controls inside cards should match the card surface and use theme tokens */
+.card .form-control,
+.card input[type="text"],
+.card input[type="password"],
+.card input[type="email"],
+.card select.form-control,
+.card textarea.form-control{
+    background-color: var(--card-surface, #fff) !important;
+    background-image: none !important;
+    background-clip: padding-box !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    color: var(--text-primary, #111) !important;
+    border: 1px solid var(--text-primary, rgba(0,0,0,0.08)) !important;
+    box-shadow: none !important;
+    border-radius: .6rem !important; /* rounded inputs */
+    padding: .5rem .75rem !important;
+}
+
+/* Labels inside cards should match text color */
+.card .form-label,
+.card label{color:var(--text-primary) !important}
+
+/* Autofill overrides (Chrome) - force background and text color to match scheme */
+.card input:-webkit-autofill,
+.card input:-webkit-autofill:focus,
+.card input:-webkit-autofill:hover{
+    -webkit-text-fill-color: var(--text-primary, #111) !important;
+    box-shadow: 0 0 0px 1000px var(--card-surface, #fff) inset !important;
+}
+
+.card .form-control:focus,
+.card input:focus,
+.card textarea:focus,
+.card select:focus{
+    border-color: var(--link-accent) !important;
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--link-accent) 20%, transparent) !important;
+    outline: none !important;
+}
+
+/* Slightly dim placeholder text to match muted tokens if available */
+.card ::placeholder{color:var(--text-muted, rgba(0,0,0,0.45))}
+
+/* Themed button utility (.button-primary) is used instead of a specific .card .btn-primary rule */
+
+/* Reusable primary button utility that follows the active theme.
+   Apply `.button-primary` to any <button> or <a> to get the themed primary style. */
+.button-primary{
+    background: var(--background) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--text-primary) !important;
+    padding: .45rem .85rem !important;
+    border-radius: .6rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.button-primary:hover,
+.button-primary:focus{
+    background: var(--text-primary) !important;
+    color: var(--background) !important;
+    border-color: var(--background) !important;
+    text-decoration: none !important;
+}
+
+
+
+

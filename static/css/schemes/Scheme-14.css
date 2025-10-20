@@ -1,0 +1,40 @@
+:root {
+  /* Colors */
+  --background: #10115A; /* Deep Navy Blue (from logo background) */
+  --text-primary: #F8E71C; /* Vibrant Golden Yellow (from logo text) */
+  --link-accent: #EED9AD; /* Cream/Beige (from dog's inner circle) */
+  --cta-tertiary: #C25B39; /* Muted Burnt Orange/Maroon (from vinyl/cassette) */
+
+  /* Typography (font-family names only) */
+  --font-heading: "Bebas Neue", sans-serif; /* Tall, bold, retro-display font */
+  --font-body: "Open Sans", sans-serif; /* Clean, modern, highly readable body */
+
+  /* Optional semantic aliases */
+  --surface: var(--background);
+  --text-muted: rgba(248, 231, 28, 0.75); /* Muted version of the primary yellow */
+  --border: rgba(248, 231, 28, 0.2); /* Thin yellow border for dividers */
+  /* Card/Box surface token (for art/card panels) */
+  --card-surface: #1B1E78; /* Slightly lighter shade of Navy Blue */
+}
+
+/* Example utility classes to document usage (optional) */
+.body-scheme-1 {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.heading-scheme-1 {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+}
+
+a.scheme-link {
+  color: var(--link-accent);
+}
+
+.button-cta {
+  background-color: var(--cta-tertiary);
+  color: var(--text-primary);
+  border: none;
+}

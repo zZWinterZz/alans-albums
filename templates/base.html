@@ -1,0 +1,106 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{% block title %}alans-albums{% endblock %}</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link id="scheme-stylesheet" rel="stylesheet" href="{% static 'css/schemes/Scheme-1.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body class="debug-center-guides">
+  <div class="center-dot" aria-hidden="true"></div>
+
+  <nav class="navbar navbar-dark">
+    <div class="container d-flex justify-content-center">
+      <div class="nav-surface d-inline-flex align-items-center justify-content-center">
+        <!-- left links -->
+        <div class="nav-left d-flex align-items-center">
+          <ul class="navbar-nav d-flex">
+            <li class="nav-item"><a class="nav-link text-white px-2" href="/store/">Store</a></li>
+            <li class="nav-item"><a class="nav-link text-white px-2" href="/contact/">Contact</a></li>
+          </ul>
+        </div>
+
+        <!-- center logo -->
+        <div class="nav-center text-center mx-3">
+          <a href="/" class="d-inline-block logo-link" aria-label="Home">
+            <img src="{% static 'images/Alansalbums.png' %}" alt="Alan's Albums" class="logo-img rounded-circle">
+          </a>
+        </div>
+
+        <!-- right controls -->
+        <div class="nav-right d-flex align-items-center">
+          {% if user.is_authenticated %}
+          <!-- Cart icon to the left of the user dropdown -->
+          <div class="me-2">
+            <a href="/basket/" class="cart-icon" aria-label="Basket">
+              <i class="fa-solid fa-cart-shopping fa-icon" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div>
+            <div class="dropdown">
+              <a class="btn btn-sm dropdown-toggle button-primary" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.username }}"><i class="fa-solid fa-user fa-icon me-1" aria-hidden="true"></i> <span class="account-label">User</span> <span class="visually-hidden">({{ user.username }})</span></a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item" href="/dashboard/">Dashboard</a></li>
+                <li><a class="dropdown-item" href="/messages/">Messages</a></li>
+                {% if user.is_superuser %}
+                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Manage site</a></li>
+                {% endif %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/accounts/logout/">Logout</a></li>
+              </ul>
+            </div>
+          </div>
+          {% else %}
+          <div>
+            <ul class="navbar-nav d-flex">
+              <li class="nav-item"><a class="nav-link text-white px-2" href="/accounts/login/">Login</a></li>
+              <li class="nav-item"><a class="nav-link text-white px-2" href="/accounts/register/">Register</a></li>
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </nav>
+
+  <main class="site-container">
+    <div class="container mb-3">
+      <div class="d-flex justify-content-end">
+        <label for="scheme-select" class="text-white small mb-0 me-2 align-self-center">Theme</label>
+        <select id="scheme-select" class="form-select form-select-sm d-inline-block" style="width:160px" data-schemes="Scheme-1,Scheme-2,Scheme-3,Scheme-4,Scheme-5,Scheme-6,Scheme-7,Scheme-8,Scheme-9,Scheme-10,Scheme-11,Scheme-12,Scheme-13,Scheme-14">
+          <option>Scheme-1</option>
+          <option>Scheme-2</option>
+          <option>Scheme-3</option>
+          <option>Scheme-4</option>
+          <option>Scheme-5</option>
+          <option>Scheme-6</option>
+          <option>Scheme-7</option>
+          <option>Scheme-8</option>
+          <option>Scheme-9</option>
+          <option>Scheme-10</option>
+          <option>Scheme-11</option>
+          <option>Scheme-12</option>
+          <option>Scheme-13</option>
+          <option>Scheme-14</option>
+        </select>
+      </div>
+    </div>
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bootstrap JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{% static 'js/main.js' %}"></script>
+  <script src="{% static 'js/theme-switcher.js' %}"></script>
+  <!-- Font Awesome kit -->
+  <script src="https://kit.fontawesome.com/7b71e8aa68.js" crossorigin="anonymous"></script>
+  {% block extra_js %}{% endblock %}
+  </body>
+</html>

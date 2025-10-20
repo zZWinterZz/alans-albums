@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Login - Alan's Albums{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-6 col-lg-5">
+      <div class="card mt-5" style="background:var(--card-surface, #ffffff); color:var(--text-primary, #111);">
+        <div class="card-body">
+          <h3 class="card-title mb-3">Login</h3>
+          {% if form.errors %}
+          <div class="alert alert-danger">Please correct the errors below.</div>
+          {% endif %}
+          {% if messages %}
+          {% for message in messages %}
+          <div class="alert alert-info">{{ message }}</div>
+          {% endfor %}
+          {% endif %}
+          <form method="post" class="mt-2" action="{% url 'login' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <div class="mb-3">
+              <label for="id_username" class="form-label">Username</label>
+              <input type="text" name="username" autofocus required id="id_username" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="id_password" class="form-label">Password</label>
+              <input type="password" name="password" required id="id_password" class="form-control">
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <a href="/accounts/register/" class="small">Create an account</a>
+              <button class="btn btn-primary button-primary" type="submit">Log in</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

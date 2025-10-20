@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Home - alans-albums{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-md-8">
+      <h1 class="display-5">Welcome to Alan's Albums</h1>
+      <p class="lead">This is a simple homepage so you can verify the navbar, theme selector, and static assets are working.</p>
+      <p>Use the navigation above to explore. If you're signed in you'll see your username and account menu.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Quick Links</h5>
+          <ul class="list-unstyled mb-0">
+            <li><a href="/store/">Store</a></li>
+            <li><a href="/contact/">Contact</a></li>
+            <li><a href="/admin/">Admin</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

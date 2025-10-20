@@ -93,6 +93,8 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# During development, also look for a top-level `static/` directory
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Use WhiteNoise to serve static files in production via Gunicorn
 STATICFILES_STORAGE = (
@@ -103,3 +105,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Required by django.contrib.sites and some 3rd-party apps
 SITE_ID = 1
+
+# Authentication redirects
+LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = "/accounts/login/"
