@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Manage - Alan's Albums{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mt-4">Manage site</h1>
+  <p class="lead">Staff tools and integrations.</p>
+
+  <div class="list-group">
+    <a href="{% url 'manage_discogs' %}?q=" class="list-group-item list-group-item-action">Discogs Search</a>
+    <a href="{% url 'admin:index' %}" class="list-group-item list-group-item-action">Django Admin</a>
+  </div>
+</div>
+{% endblock %}

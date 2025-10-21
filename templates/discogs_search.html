@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Discogs Search{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mt-4">Discogs Search</h1>
+
+  <form method="get" class="mb-3">
+    <div class="card mb-3">
+      <div class="card-body p-2">
+        <div class="input-group">
+          <input name="q" value="{{ query }}" class="form-control" placeholder="Search Discogs releases or artists" aria-label="Search Discogs">
+          <button class="button-primary" type="submit">Search</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% if query and results is not None %}
+    <h5>Results for “{{ query }}”</h5>
+    {% if not has_token %}
+      <div class="alert alert-warning">No Discogs token found. Set <code>DISCOGS_TOKEN</code> environment variable to enable API searches.</div>
+    {% endif %}
+    {% if results %}
+      <div class="row">
+        {% for r in results %}
+          <div class="col-md-4 mb-3">
+            <div class="card">
+              <img src="{{ r.thumb|default:'' }}" class="card-img-top" alt="">
+              <div class="card-body">
+                <h5 class="card-title">{{ r.title }}</h5>
+                <p class="card-text small">{{ r.year }} · {{ r.format|default:'' }}</p>
+                <a href="{{ r.resource_url }}" class="btn btn-sm btn-outline-primary" target="_blank">View on Discogs</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info">No results found. Try a different query or check your Discogs token.</div>
+    {% endif %}
+  {% endif %}
+  
+</div>
+{% endblock %}
