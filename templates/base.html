@@ -47,9 +47,6 @@
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li><a class="dropdown-item" href="/dashboard/">Dashboard</a></li>
                 <li><a class="dropdown-item" href="/messages/">Messages</a></li>
-                {% if user.is_superuser %}
-                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Manage site (admin)</a></li>
-                {% endif %}
                 {% if user.is_staff %}
                 <li><a class="dropdown-item" href="{% url 'manage_landing' %}">Manage site</a></li>
                 {% endif %}

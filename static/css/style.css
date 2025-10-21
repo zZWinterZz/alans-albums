@@ -204,6 +204,38 @@ body.debug-center-guides .center-dot{
     padding: .5rem .75rem !important;
 }
 
+/* Ensure the entire card surface follows the active color scheme so cards
+   (including manage landing/search cards) match themed surfaces. */
+.card{
+    background: var(--card-surface, #fff) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    border-radius: .8rem !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.card .card-body{background: transparent !important;}
+
+/* If a themed primary-style button is placed next to the input, ensure it
+   visually matches the card surface and doesn't appear as a separate white
+   block. Small adjustments for input-group usage. */
+.input-group .button-primary{
+    margin-left: .5rem;
+    border-radius: .6rem !important;
+    padding-left: .65rem !important;
+    padding-right: .65rem !important;
+}
+
+/* Make list-group items inside cards follow the card surface and text colors */
+.card .list-group-item{
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border: none !important;
+}
+.card .list-group-item:hover{
+    background: color-mix(in srgb, var(--link-accent) 12%, transparent) !important;
+}
+
 /* Labels inside cards should match text color */
 .card .form-label,
 .card label{color:var(--text-primary) !important}

@@ -3,12 +3,15 @@
 
 {% block content %}
 <div class="container">
-  <h1 class="mt-4">Manage site</h1>
-  <p class="lead">Staff tools and integrations.</p>
-
-  <div class="list-group">
-    <a href="{% url 'manage_discogs' %}?q=" class="list-group-item list-group-item-action">Discogs Search</a>
-    <a href="{% url 'admin:index' %}" class="list-group-item list-group-item-action">Django Admin</a>
+  <div class="card mt-4">
+    <div class="card-body">
+      <h1 class="mb-1">Manage site</h1>
+      <p class="lead mb-3">Staff tools and integrations.</p>
+      <div class="list-group">
+        <a href="{% url 'manage_discogs' %}?q=" class="list-group-item list-group-item-action">Discogs Search</a>
+        <a href="{% url 'admin:index' %}" class="list-group-item list-group-item-action">Django Admin</a>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
