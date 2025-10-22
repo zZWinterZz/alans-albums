@@ -284,6 +284,16 @@ body.debug-center-guides .center-dot{
     text-decoration: none !important;
 }
 
+/* Discogs/search result card styling that follows scheme tokens */
+.search-card{
+    background: var(--card-surface) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border, rgba(0,0,0,0.06));
+}
+.search-thumb{height:200px;object-fit:cover;object-position:center top}
+.search-meta{color:var(--text-primary) !important}
+
+
 
 
 

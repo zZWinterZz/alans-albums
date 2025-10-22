@@ -25,12 +25,49 @@
       <div class="row">
         {% for r in results %}
           <div class="col-md-4 mb-3">
-            <div class="card">
-              <img src="{{ r.thumb|default:'' }}" class="card-img-top" alt="">
+            <div class="card h-100">
+              {% if r.thumb %}
+                <img src="{{ r.thumb }}" class="card-img-top" alt="{{ r.title }}">
+              {% endif %}
               <div class="card-body">
-                <h5 class="card-title">{{ r.title }}</h5>
-                <p class="card-text small">{{ r.year }} · {{ r.format|default:'' }}</p>
-                <a href="{{ r.resource_url }}" class="btn btn-sm btn-outline-primary" target="_blank">View on Discogs</a>
+                <p class="mb-1">{{ r.artist }}</p>
+                <p class="fw-semibold mb-1">{{ r.title }}</p>
+                <p class="mb-1 small">{{ r.year }}{% if r.country %} · {{ r.country }}{% endif %}</p>
+                {% if r.catalog_number %}
+                <p class="mb-1 small">Catalog: {{ r.catalog_number }}</p>
+                {% endif %}
+                {% if r.formats_lines %}
+                <ul class="list-unstyled small mb-1">
+                  {% for line in r.formats_lines %}
+                    <li>{{ line }}</li>
+                  {% endfor %}
+                </ul>
+                {% else %}
+                <p class="mb-1 small">{{ r.formats }}</p>
+                {% endif %}
+                <p class="mb-1 small">Suggested price: <span class="suggested-price">{% if r.suggested_price %}£ {{ r.suggested_price }}{% endif %}</span></p>
+                <div class="d-flex gap-2 align-items-center">
+                  <select class="form-select form-select-sm condition-select" data-release-id="{{ r.release_id }}" style="width:160px">
+                    <option value="">Select condition</option>
+                    <option value="Poor (P)">Poor (P)</option>
+                    <option value="Fair (F)">Fair (F)</option>
+                    <option value="Good (G)">Good (G)</option>
+                    <option value="Good Plus (G+)">Good Plus (G+)</option>
+                    <option value="Very Good (VG)">Very Good (VG)</option>
+                    <option value="Very Good Plus (VG+)">Very Good Plus (VG+)</option>
+                    <option value="Near Mint (NM or M-)">Near Mint (NM or M-)</option>
+                    <option value="Mint (M)">Mint (M)</option>
+                  </select>
+                  <a href="{% url 'create_listing' %}?release_id={{ r.release_id }}{% if r.thumb %}&thumb={{ r.thumb|urlencode }}{% endif %}" class="btn btn-sm button-primary mt-2">Create listing</a>
+                </div>
+                {% if r.release_notes %}
+                <div class="mt-2">
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#notes-{{ r.release_id }}" aria-expanded="false" aria-controls="notes-{{ r.release_id }}">Notes</button>
+                  <div class="collapse mt-2" id="notes-{{ r.release_id }}">
+                    <div class="card card-body small">{{ r.release_notes }}</div>
+                  </div>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -42,4 +79,64 @@
   {% endif %}
   
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const selects = document.querySelectorAll('.condition-select');
+  selects.forEach(function(sel){
+    sel.addEventListener('change', async function(){
+      const cond = sel.value;
+      const releaseId = sel.dataset.releaseId;
+      const card = sel.closest('.card');
+      const priceEl = card.querySelector('.suggested-price');
+      if(!releaseId || !cond){
+        priceEl.textContent = '';
+        return;
+      }
+      // Fetch suggestions and try to find the best matching condition key
+      try{
+        const resp = await fetch(`/manage/discogs/price_suggestions/${releaseId}/`);
+        if(!resp.ok) throw new Error('Network');
+        const data = await resp.json();
+        if(!data || Object.keys(data).length === 0){
+          priceEl.textContent = 'No suggestion';
+          return;
+        }
+
+        const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+        let suggestion = null;
+
+        // direct lookup
+        if(data.hasOwnProperty(cond)) suggestion = data[cond];
+        // try to match by normalized key (handles variants like "Mint (M)" vs "Mint")
+        if(!suggestion){
+          const target = normalize(cond);
+          for(const k of Object.keys(data)){
+            const nk = normalize(k);
+            if(nk === target || nk.includes(target) || target.includes(nk)){
+              suggestion = data[k];
+              break;
+            }
+          }
+        }
+
+        if(suggestion && suggestion.value !== undefined && suggestion.value !== null){
+          const parsed = parseFloat(suggestion.value);
+          if(!isNaN(parsed)){
+            priceEl.textContent = '£ ' + parsed.toFixed(2);
+          } else {
+            priceEl.textContent = '£ ' + suggestion.value;
+          }
+        } else {
+          priceEl.textContent = 'No suggestion';
+        }
+      }catch(err){
+        priceEl.textContent = 'Error';
+      }
+    })
+  })
+})
+</script>
 {% endblock %}

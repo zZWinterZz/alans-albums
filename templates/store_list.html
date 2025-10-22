@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-3">Store</h1>
+
+  <form method="get" class="mb-3">
+    <div class="row g-2">
+      <div class="col-md-3"><input name="artist" value="{{ artist_q }}" placeholder="Artist" class="form-control"></div>
+      <div class="col-md-3"><input name="title" value="{{ title_q }}" placeholder="Title" class="form-control"></div>
+      <div class="col-md-3"><input name="format" value="{{ format_q }}" placeholder="Format" class="form-control"></div>
+      <div class="col-md-3"><button class="button-primary">Filter</button></div>
+    </div>
+  </form>
+
+  {% if featured %}
+  <h4 class="mb-2">Featured</h4>
+  <div class="row row-cols-6 g-3 mb-4">
+    {% for l in featured %}
+      <div class="col">
+        <div class="card h-100">
+          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top" alt="">
+            <div class="card-body small text-primary">
+              <div class="fw-semibold">{{ l.artist }}</div>
+              <div>{{ l.title }}</div>
+              <div class="small">{{ l.formats }}</div>
+              <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
+              <div class="mt-2 d-flex gap-2 align-items-center">
+                <button class="btn btn-sm button-primary">Add to basket</button>
+                {% if l.release_notes %}
+                  <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#notes-{{ l.pk }}">Notes</button>
+                {% endif %}
+              </div>
+              {% if l.release_notes %}
+              <div class="collapse mt-2" id="notes-{{ l.pk }}">
+                <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+              </div>
+              {% endif %}
+            </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h4 class="mb-2">All listings</h4>
+  <div class="row row-cols-6 g-3">
+    {% for l in listings %}
+      <div class="col">
+        <div class="card h-100">
+          {% if l.thumb %}<img src="{{ l.thumb }}" class="card-img-top" alt="">{% endif %}
+          <div class="card-body small text-primary">
+            <div class="fw-semibold">{{ l.artist }}</div>
+            <div>{{ l.title }}</div>
+            <div class="small">{{ l.formats }}</div>
+            <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
+            <div class="mt-2 d-flex gap-2 align-items-center">
+              <button class="btn btn-sm button-primary">Add to basket</button>
+              {% if l.release_notes %}
+                <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#notes-{{ l.pk }}">Notes</button>
+              {% endif %}
+            </div>
+            {% if l.release_notes %}
+            <div class="collapse mt-2" id="notes-{{ l.pk }}">
+              <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col">No listings found.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

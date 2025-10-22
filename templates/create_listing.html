@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Create Listing{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mt-4">Create Listing</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="mb-2">
+          <label class="form-label">Artist</label>
+          <input name="artist" value="{{ artist }}" class="form-control">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Title</label>
+          <input name="title" value="{{ title }}" class="form-control">
+        </div>
+        <div class="mb-2 row">
+          <div class="col">
+            <label class="form-label">Year</label>
+            <input name="year" value="{{ year }}" class="form-control">
+          </div>
+          <div class="col">
+            <label class="form-label">Country</label>
+            <input name="country" value="{{ country }}" class="form-control">
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Catalog Number</label>
+          <input name="catalog_number" value="{{ catalog_number }}" class="form-control">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Formats</label>
+          <textarea name="formats" class="form-control" rows="3">{{ formats }}</textarea>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Notes</label>
+          <textarea name="release_notes" class="form-control" rows="4">{{ release_notes }}</textarea>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Suggested price</label>
+          <input name="suggested_price" value="{{ suggested_price }}" class="form-control">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Cover image URL (thumb)</label>
+          <input name="thumb" value="{{ thumb }}" class="form-control">
+          {% if thumb %}
+          <div class="mt-2"><img src="{{ thumb }}" style="width:120px;object-fit:cover;border-radius:4px"></div>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <button class="button-primary">Create</button>
+          <a href="{% url 'manage_discogs' %}" class="btn btn-secondary">Back to search</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

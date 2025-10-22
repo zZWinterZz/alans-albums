@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Store listings{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mt-4">Store listings</h1>
+  <div class="list-group">
+    {% for l in listings %}
+      <div class="list-group-item d-flex align-items-center justify-content-between">
+        <div class="d-flex gap-3 align-items-center">
+          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" style="width:64px;height:64px;object-fit:cover;border-radius:4px;" alt="">
+          <div class="text-primary">
+            <div class="fw-semibold">{{ l.artist }} — {{ l.title }} {% if l.featured %}<span class="badge bg-primary text-white">Featured</span>{% endif %}</div>
+            <div class="small">{{ l.formats }}</div>
+            {% if l.release_notes %}
+              <div class="mt-1">
+                <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#manage-notes-{{ l.pk }}">Notes</button>
+                <div class="collapse mt-1" id="manage-notes-{{ l.pk }}">
+                  <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="fw-semibold text-primary">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
+          <form method="post" action="{% url 'listing_toggle_featured' l.pk %}">{% csrf_token %}
+            <button class="btn btn-sm button-primary">{% if l.featured %}Unfeature{% else %}Feature{% endif %}</button>
+          </form>
+          <a href="{% url 'listing_edit' l.pk %}" class="btn btn-sm button-primary">Edit</a>
+          <a href="{% url 'listing_delete' l.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+        </div>
+      </div>
+    {% empty %}
+      <div class="list-group-item">No listings yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

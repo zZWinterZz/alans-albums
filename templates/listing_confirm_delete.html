@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Delete listing{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mt-4">Delete listing</h1>
+  <div class="card">
+    <div class="card-body">
+      <p>Are you sure you want to delete <strong>{{ listing.artist }} — {{ listing.title }}</strong>?</p>
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-danger">Delete</button>
+        <a href="{% url 'listing_list' %}" class="btn btn-secondary">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -138,3 +138,47 @@ def get_release(
         return data
 
     return cached
+
+
+def price_suggestions(
+    release_id: int, token: Optional[str] = None, ttl: int = 86400
+) -> Dict[str, Any]:
+    """Retrieve marketplace price suggestions for a release and cache the response.
+
+    Returns a dict mapping condition names to {currency, value} or an empty dict.
+    Authentication (user token) is required by Discogs; we send the configured
+    DISCOGS_TOKEN if available. We cache the response for `ttl` seconds.
+    """
+    try:
+        release_id = int(release_id)
+    except Exception:
+        return {}
+
+    key = f"discogs:price_suggestions:{release_id}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    token = _get_token(token)
+    headers = {"User-Agent": DEFAULT_USER_AGENT}
+    if token:
+        headers["Authorization"] = f"Discogs token={token}"
+
+    url = f"{BASE_URL}/marketplace/price_suggestions/{release_id}"
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+    except requests.RequestException:
+        return cached or {}
+
+    if resp.status_code == 200:
+        try:
+            data = resp.json() or {}
+        except Exception:
+            data = {}
+        try:
+            cache.set(key, data, ttl)
+        except Exception:
+            pass
+        return data
+
+    return cached or {}
