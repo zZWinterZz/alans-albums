@@ -1,24 +1,24 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Home - alans-albums{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="row">
-    <div class="col-md-8">
-      <h1 class="display-5">Welcome to Alan's Albums</h1>
-      <p class="lead">This is a simple homepage so you can verify the navbar, theme selector, and static assets are working.</p>
-      <p>Use the navigation above to explore. If you're signed in you'll see your username and account menu.</p>
-    </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Quick Links</h5>
-          <ul class="list-unstyled mb-0">
-            <li><a href="/store/">Store</a></li>
-            <li><a href="/contact/">Contact</a></li>
-            <li><a href="/admin/">Admin</a></li>
-          </ul>
+<div class="hero d-flex justify-content-center align-items-center" style="background-image: url('{% static "images/alansalbumshero.jpg" %}');">
+  <img src="{% static 'images/storefront.jpg' %}" alt="Storefront" class="img-fluid shadow-lg" style="max-width:40vw; width:100%; height:auto; border-radius:1vw;">
+</div>
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-9 col-lg-8 mx-auto">
+      <div class="card shadow-lg border-0">
+  <div class="card-body text-center fw-bold home-lead-text">
+          <p>Welcome to Alan's Albums, your local sanctuary for retro media and memorabilia!</p>
+          <p>More than just a store, we're a celebration of sound, specializing in buying and selling quality vinyl, CDs, and cassettes. Dive into our crates and shelves to rediscover the warmth of analog and the classics that defined generations. Whether you're hunting for that rare first pressing, a nostalgic piece of music history, or just want to spin an old favorite, we've got the soundtrack and the memories that echo with tales of days gone by</p>
+          <p>And for an extra dose of warmth, you'll often be greeted by our store mascot, Alan himself—a friendly blue Staffy whose tail wags for every collector and music lover who walks through the door.</p>
+          <div class="my-3">
+            <img src="{% static 'images/Alan.png' %}" alt="Alan the Staffy" class="rounded-circle shadow" style="width:120px;height:120px;object-fit:cover;object-position:25% 10%;">
+          </div>
+          <p>Come on in, explore the sounds and sights, and say hello to Alan!</p>
         </div>
       </div>
     </div>

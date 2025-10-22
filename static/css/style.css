@@ -1,3 +1,7 @@
+/* Responsive lead text for homepage */
+.home-lead-text {
+    font-size: clamp(1rem, 2vw, 1.5rem) !important;
+}
 .navbar .nav-link{color:var(--text-primary);}
 .navbar .nav-link:hover{color:var(--link-accent);}
 .navbar .site-title{font-weight:600}
@@ -41,7 +45,43 @@ main,
 .btn-outline-light:hover{color:var(--accent)}
 
 /* Nav row (flex-based) and centered logo */
-.navbar{position:relative;padding-top:0.25rem;padding-bottom:0.25rem;margin-top:25px}
+.navbar{position:fixed;top:0;left:0;right:0;padding-top:0.25rem;padding-bottom:0.25rem;margin-top:0;z-index:1100}
+
+/* Hero section styles (site homepage) */
+
+.hero {
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    width: 100vw;
+    aspect-ratio: 16/7.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    z-index: 1;
+}
+
+.hero::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25));
+    z-index:0;
+}
+.hero .hero-content{
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 
 /* Logo sizing and crop */
 .logo-link{display:inline-block;width:112px;height:112px;overflow:hidden;border-radius:999px;border:4px solid rgba(255,255,255,0.14);background:var(--background);box-sizing:content-box;position:relative}
@@ -85,14 +125,14 @@ main,
 
 /* place logo absolutely so it visually overlaps but doesn't increase nav height */
 .nav-center{position:relative}
-.nav-center .logo-link{position:absolute;left:50%;transform:translateX(-50%);top:-50px}
+.nav-center .logo-link{position:absolute;left:50%;transform:translateX(-50%);top:-30px}
 
 @media (max-width: 991.98px){
-    .nav-center .logo-link{top:-40px}
+    .nav-center .logo-link{top:-24px}
 }
 
 @media (max-width: 767.98px){
-    .nav-center .logo-link{top:-32px}
+    .nav-center .logo-link{top:-18px}
     .dropdown-toggle{margin-right: 10px;}
 }
 

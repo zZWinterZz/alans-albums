@@ -17,12 +17,12 @@
 
   {% if featured %}
   <h4 class="mb-2">Featured</h4>
-  <div class="row row-cols-6 g-3 mb-4">
+  <div class="row g-3 mb-4">
     {% for l in featured %}
-      <div class="col">
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card h-100">
-          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top" alt="">
-            <div class="card-body small text-primary">
+          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top img-fluid w-100" style="height:180px;object-fit:cover;" alt="">
+            <div class="card-body small text-primary text-break">
               <div class="fw-semibold">{{ l.artist }}</div>
               <div>{{ l.title }}</div>
               <div class="small">{{ l.formats }}</div>
@@ -46,12 +46,12 @@
   {% endif %}
 
   <h4 class="mb-2">All listings</h4>
-  <div class="row row-cols-6 g-3">
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-3">
     {% for l in listings %}
-      <div class="col">
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card h-100">
-          {% if l.thumb %}<img src="{{ l.thumb }}" class="card-img-top" alt="">{% endif %}
-          <div class="card-body small text-primary">
+          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top img-fluid w-100" style="height:180px;object-fit:cover;" alt="">
+          <div class="card-body small text-primary text-break">
             <div class="fw-semibold">{{ l.artist }}</div>
             <div>{{ l.title }}</div>
             <div class="small">{{ l.formats }}</div>
