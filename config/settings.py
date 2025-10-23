@@ -126,3 +126,24 @@ SITE_ID = 1
 # Authentication redirects
 LOGIN_REDIRECT_URL = "/"
 LOGIN_URL = "/accounts/login/"
+
+# Security settings for production (when DEBUG is False)
+if not DEBUG:
+    # Heroku (and many proxies) set X-Forwarded-Proto to 'https' for secure requests
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Redirect all HTTP to HTTPS
+    SECURE_SSL_REDIRECT = True
+
+    # Use secure cookies
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # HSTS - tell browsers to always use HTTPS for this domain. Keep a low value at first
+    SECURE_HSTS_SECONDS = 60  # raise to a larger value (e.g., 2592000) once confirmed
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
+    # Prevent the browser from attempting to guess the content type
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
