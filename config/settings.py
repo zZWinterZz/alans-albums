@@ -15,8 +15,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-placeholder-key")
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in ("1", "true", "yes")
-HOST = os.environ.get('HOST', '').split(',')
-ALLOWED_HOSTS = [os.environ.get("HOST", "127.0.0.1"), "localhost"]
+# Parse HOST env var (comma-separated) into a cleaned list for ALLOWED_HOSTS.
+# Example: HOST="myapp.herokuapp.com,alansalbums.com,www.alansalbums.com"
+_hosts_env = os.environ.get('HOST', '127.0.0.1')
+HOSTS = [h.strip() for h in _hosts_env.split(',') if h.strip()]
+ALLOWED_HOSTS = HOSTS + ["localhost"]
 
 # Application definition
 INSTALLED_APPS = [
