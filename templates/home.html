@@ -4,19 +4,58 @@
 {% block title %}Home - alans-albums{% endblock %}
 
 {% block content %}
-<div class="hero d-flex justify-content-center align-items-center" style="background-image: url('{% static "images/alansalbumshero.jpg" %}');">
-  <img src="{% static 'images/storefront.jpg' %}" alt="Storefront" class="img-fluid shadow-lg" style="max-width:40vw; width:100%; height:auto; border-radius:1vw;">
+<div class="video-hero position-relative text-center" style="width:100vw;aspect-ratio:16/7.5;overflow:hidden;left:50%;transform:translateX(-50%);">
+  <video id="heroVideo" width="100%" style="object-fit:cover;min-height:240px;display:block;" autoplay loop muted playsinline poster="{% static 'images/alansalbumshero.jpg' %}">
+    <source src="{% static 'Videos/PromoVideo.mp4' %}" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <span id="muteToggle" role="button" tabindex="0" aria-label="Toggle sound" style="position:absolute;bottom:18px;right:24px;z-index:2;cursor:pointer;user-select:none;">
+    <i id="muteIcon" class="fa-solid fa-volume-xmark fa-icon"></i> <span class="visually-hidden">Toggle sound</span>
+  </span>
 </div>
-<div class="container my-5">
+<!-- First lead card -->
+<div class="container my-4">
   <div class="row justify-content-center">
     <div class="col-12 col-md-9 col-lg-8 mx-auto">
       <div class="card shadow-lg border-0">
-  <div class="card-body text-center fw-bold home-lead-text">
+        <div class="card-body text-center fw-bold home-lead-text">
           <p>Welcome to Alan's Albums, your local sanctuary for retro media and memorabilia!</p>
-          <p>More than just a store, we're a celebration of sound, specializing in buying and selling quality vinyl, CDs, and cassettes. Dive into our crates and shelves to rediscover the warmth of analog and the classics that defined generations. Whether you're hunting for that rare first pressing, a nostalgic piece of music history, or just want to spin an old favorite, we've got the soundtrack and the memories that echo with tales of days gone by</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="hero d-flex justify-content-center align-items-center mt-0" style="background-image: url('{% static "images/alansalbumshero.jpg" %}');">
+  <img src="{% static 'images/storefront.jpg' %}" alt="Storefront" class="img-fluid shadow-lg" style="max-width:40vw; width:100%; height:auto; border-radius:1vw;">
+</div>
+
+<!-- Second lead card -->
+<div class="container my-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-9 col-lg-8 mx-auto">
+      <div class="card shadow-lg border-0">
+        <div class="card-body text-center fw-bold home-lead-text">
+          <p>More than just a store, we're a celebration of sound, specialising in buying and selling quality vinyl, CDs, and cassettes. Dive into our crates and shelves to rediscover the warmth of analogue and the classics that defined generations. Whether you're hunting for that rare first pressing, a nostalgic piece of music history, or just want to spin an old favourite, we've got the soundtrack and the memories that echo with tales of days gone by.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Carousel section -->
+<div class="container-fluid px-0">
+  {% include 'partials/home_carousel.html' %}
+</div>
+
+<!-- Third lead card with Alan image and last p -->
+<div class="container my-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-9 col-lg-8 mx-auto">
+      <div class="card shadow-lg border-0">
+        <div class="card-body text-center fw-bold home-lead-text">
           <p>And for an extra dose of warmth, you'll often be greeted by our store mascot, Alan himself—a friendly blue Staffy whose tail wags for every collector and music lover who walks through the door.</p>
           <div class="my-3">
-            <img src="{% static 'images/Alan.png' %}" alt="Alan the Staffy" class="rounded-circle shadow" style="width:120px;height:120px;object-fit:cover;object-position:25% 10%;">
+            <img src="{% static 'images/Alan.jpg' %}" alt="Alan the Staffy" class="rounded-circle shadow" style="width:120px;height:120px;object-fit:cover;object-position:25% 10%;">
           </div>
           <p>Come on in, explore the sounds and sights, and say hello to Alan!</p>
         </div>
@@ -24,4 +63,32 @@
     </div>
   </div>
 </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var video = document.getElementById('heroVideo');
+  var btn = document.getElementById('muteToggle');
+    var icon = document.getElementById('muteIcon');
+    if (video && btn && icon) {
+      function updateIcon() {
+        if (video.muted) {
+          icon.className = 'fa-solid fa-volume-xmark fa-icon';
+        } else {
+          icon.className = 'fa-solid fa-volume-high fa-icon';
+        }
+      }
+      btn.addEventListener('click', function() {
+        video.muted = !video.muted;
+        updateIcon();
+      });
+      btn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          video.muted = !video.muted;
+          updateIcon();
+        }
+      });
+      // Set initial icon
+      updateIcon();
+    }
+  });
+</script>
 {% endblock %}
