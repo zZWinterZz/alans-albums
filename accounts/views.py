@@ -325,10 +325,56 @@ def listing_edit(request, pk: int):
 
     obj = get_object_or_404(Listing, pk=pk)
     if request.method == 'POST':
-        form = ListingForm(request.POST, instance=obj)
+        action = request.POST.get('action')
+        # If user clicked the 'Delete selected' button, only delete selected images and return
+        if action == 'delete_selected':
+            delete_ids = request.POST.getlist('images_to_delete')
+            deleted_count = 0
+            if delete_ids:
+                from .models import ListingImage
+                qs = ListingImage.objects.filter(listing=obj, pk__in=delete_ids)
+                deleted_count = qs.count()
+                if deleted_count:
+                    qs.delete()
+            if deleted_count:
+                messages.success(request, f"{deleted_count} image(s) deleted")
+            else:
+                messages.info(request, 'No images selected for deletion')
+            return redirect(reverse('listing_edit', args=[obj.pk]))
+
+        # Otherwise it's the normal save/upload flow
+        form = ListingForm(request.POST, request.FILES, instance=obj)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Listing updated')
+            # delete selected existing images (also allow deleting as part of save)
+            delete_ids = request.POST.getlist('images_to_delete')
+            deleted_count = 0
+            if delete_ids:
+                from .models import ListingImage
+                qs = ListingImage.objects.filter(listing=obj, pk__in=delete_ids)
+                deleted_count = qs.count()
+                if deleted_count:
+                    qs.delete()
+
+            # handle uploaded images
+            files = request.FILES.getlist('images')
+            from .models import ListingImage
+            for f in files:
+                # skip empty uploads
+                if not f:
+                    continue
+                try:
+                    li = ListingImage(listing=obj, uploaded_by=request.user if request.user.is_authenticated else None)
+                    # assign the uploaded file directly to the CloudinaryField and save the model
+                    li.image = f
+                    li.save()
+                except Exception:
+                    # avoid aborting the whole request if a single image fails to save
+                    continue
+            msg = 'Listing updated'
+            if deleted_count:
+                msg = f"{msg} — {deleted_count} image(s) deleted"
+            messages.success(request, msg)
             return redirect(reverse('listing_list'))
     else:
         form = ListingForm(instance=obj)

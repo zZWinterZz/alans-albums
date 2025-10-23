@@ -65,3 +65,15 @@ postgres://alans:alans_password@127.0.0.1:5432/alans_albums
 After starting the DB, run migrations and create the admin as documented above.
 
 Security note: Do NOT commit real secret keys or passwords to the repository. Move secrets out of `env.py` and into environment variables or a secure secrets manager before deploying.
+
+Cloudinary and migrations
+-------------------------
+
+After adding the Cloudinary-backed `ListingImage` model, run:
+
+```powershell
+python manage.py makemigrations accounts
+python manage.py migrate
+```
+
+Make sure `CLOUDINARY_URL` (or `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`) are set before uploading images.

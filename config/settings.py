@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-placeholder-key")
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() in ("1", "true", "yes")
-
+HOST = os.environ.get('HOST', '').split(',')
 ALLOWED_HOSTS = [os.environ.get("HOST", "127.0.0.1"), "localhost"]
 
 # Application definition
@@ -29,6 +29,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Local apps
     "accounts.apps.AccountsConfig",
+    # Cloudinary for image storage
+    "cloudinary",
+    "cloudinary_storage",
 ]
 
 MIDDLEWARE = [
@@ -102,6 +105,15 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = (
     "whitenoise.storage.CompressedManifestStaticFilesStorage"
 )
+
+# Cloudinary storage configuration (optional — used when CLOUDINARY_URL env var is set)
+if os.environ.get('CLOUDINARY_URL'):
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+        'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

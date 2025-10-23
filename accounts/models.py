@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from cloudinary.models import CloudinaryField
 
 
 class Listing(models.Model):
@@ -36,3 +37,19 @@ class Listing(models.Model):
 
     def __str__(self):
         return f"{self.artist} - {self.title} ({self.catalog_number})"
+
+
+class ListingImage(models.Model):
+    """Additional images for a Listing stored on Cloudinary."""
+    listing = models.ForeignKey(Listing, related_name='images', on_delete=models.CASCADE)
+    image = CloudinaryField('image', blank=True, null=True)
+    caption = models.CharField(max_length=255, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return f"Image for {self.listing} ({self.pk})"
