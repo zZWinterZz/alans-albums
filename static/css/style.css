@@ -324,6 +324,20 @@ body.debug-center-guides .center-dot{
     text-decoration: none !important;
 }
 
+/* Utility classes to map markup to theme tokens used in templates */
+.bg-surface {
+    background: var(--card-surface) !important;
+    color: var(--text-primary) !important;
+}
+.text-primary {
+    color: var(--text-primary) !important;
+}
+.list-group-item.bg-surface {
+    background: var(--card-surface) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(255,255,255,0.04) !important;
+}
+
 /* Discogs/search result card styling that follows scheme tokens */
 .search-card{
     background: var(--card-surface) !important;
@@ -332,6 +346,74 @@ body.debug-center-guides .center-dot{
 }
 .search-thumb{height:200px;object-fit:cover;object-position:center top}
 .search-meta{color:var(--text-primary) !important}
+
+/* Highlight marker inserted for manual cleanup of Discogs notes */
+.remove-highlight{
+    background: color-mix(in srgb, var(--link-accent) 30%, transparent);
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.35rem;
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+/* Full-screen image viewer styles */
+.image-viewer{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.image-viewer .iv-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.75);pointer-events:auto}
+.image-viewer .iv-inner{position:relative;max-width:100vw;pointer-events:auto;display:flex;align-items:stretch;justify-content:center;padding:8px 6px;height:100vh;box-sizing:border-box}
+.image-viewer .iv-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:100%;height:100%}
+.image-viewer .iv-img-wrap{
+    position:relative;
+    width:100%;
+    max-width: calc(100vw - 40px);
+    /* allow the wrapper to use remaining vertical space inside iv-stage */
+    flex: 1 1 auto;
+    min-height: 40vh;
+    display:flex; /* allow centering via flex */
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    box-sizing:border-box;
+}
+.image-viewer .iv-img{
+    /* Image should scale to fill the wrapper while preserving aspect ratio */
+    position:relative;
+    display:block;
+    margin:0 auto;
+    width:auto; height:auto;
+    max-width:90vw;
+    /* Prefer filling the wrapper height exactly so the image uses available vertical space */
+    height:100%;
+    max-height:none;
+    object-fit:contain;
+    border-radius:6px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.6);
+    background:var(--card-surface);
+}
+
+/* temporary reset animation class used when snapping back to center */
+.image-viewer .iv-img.iv-resetting{ transition: transform .22s cubic-bezier(.2,.9,.2,1) !important; }
+
+    /* keep will-change for smoother animations */
+    .image-viewer .iv-img{ will-change: transform; }
+.image-viewer .iv-prev,.image-viewer .iv-next,.image-viewer .iv-close,.image-viewer .iv-zoom-toggle{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text-primary);padding:.35rem .6rem;border-radius:.5rem}
+.image-viewer .iv-prev,.image-viewer .iv-next{font-size:1.4rem}
+.image-viewer.d-none{display:none}
+
+/* position close button at the top-right of the viewer inner area */
+.image-viewer .iv-inner .iv-close{position:absolute;right:18px;top:18px;z-index:13001}
+
+/* ensure controls are visible and not clipped */
+.image-viewer .iv-controls{z-index:13000;flex:0 0 auto;margin-top:12px}
+
+/* When zoomed, make cursor indicate draggable area */
+.image-viewer .iv-img-wrap.zoom-active{cursor:grab}
+.image-viewer .iv-img-wrap.zoom-active:active{cursor:grabbing}
+
+/* When zoomed, make cursor indicate draggable area */
+.image-viewer .iv-img-wrap.zoom-active{cursor:grab}
+.image-viewer .iv-img-wrap.zoom-active:active{cursor:grabbing}
+
+
 
 
 

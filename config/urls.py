@@ -5,7 +5,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include
 from accounts.views import register
 from accounts.views import manage_landing, discogs_search
-from accounts.views import discogs_price_suggestions_view
+from accounts.views import discogs_price_suggestions_view, discogs_release_details_view
 from accounts.views import create_listing, listing_list, listing_edit, listing_delete, listing_toggle_featured, store_list
 
 
@@ -31,6 +31,7 @@ urlpatterns = [
     path("manage/discogs/", discogs_search, name="manage_discogs"),
     path("manage/listings/", listing_list, name="listing_list"),
     path("manage/discogs/price_suggestions/<int:release_id>/", discogs_price_suggestions_view, name="discogs_price_suggestions"),
+    path("manage/discogs/release_details/<int:release_id>/", discogs_release_details_view, name="discogs_release_details"),
     path("manage/listings/create/", create_listing, name="create_listing"),
     path("manage/listings/<int:pk>/edit/", listing_edit, name="listing_edit"),
     path("manage/listings/<int:pk>/delete/", listing_delete, name="listing_delete"),

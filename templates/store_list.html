@@ -6,6 +6,47 @@
 <div class="container mt-4">
   <h1 class="mb-3">Store</h1>
 
+  {% if featured %}
+  <h4 class="mb-2">Featured</h4>
+  <div class="row g-3 mb-4" data-section="featured">
+    {% for l in featured %}
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
+        <div class="card h-100">
+          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top img-fluid w-100" style="height:180px;object-fit:cover;" alt="">
+            <div class="card-body small text-primary text-break">
+              <div class="fw-semibold">{{ l.artist }}</div>
+              <div>{{ l.title }}</div>
+              <div class="small">{{ l.formats }}</div>
+              <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% endif %}</div>
+              <div class="mt-2 d-flex gap-2 align-items-center">
+                <button class="btn btn-sm button-primary">Add to basket</button>
+                {% if l.images.all %}
+                  <button class="btn btn-sm button-primary check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
+                  <div class="listing-images d-none" aria-hidden="true">
+                    {% for img in l.images.all %}
+                      <img src="{{ img.image.url }}" alt="{{ img.caption|default:'' }}" class="img-fluid">
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if l.release_notes %}
+                  <div class="position-relative notes-container">
+                    {% comment %} Featured overlay id includes suffix to keep it unique when the same listing also appears below {% endcomment %}
+                    {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-featured' %}
+                    <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="featured" aria-controls="{{ oid }}">Notes</button>
+                    <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="featured">
+                      <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                    </div>
+                    {% endwith %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <form method="get" class="mb-3">
     <div class="row g-2">
       <div class="col-md-3"><input name="artist" value="{{ artist_q }}" placeholder="Artist" class="form-control"></div>
@@ -15,38 +56,8 @@
     </div>
   </form>
 
-  {% if featured %}
-  <h4 class="mb-2">Featured</h4>
-  <div class="row g-3 mb-4">
-    {% for l in featured %}
-      <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card h-100">
-          <img src="{% if l.thumb %}{{ l.thumb }}{% else %}{% static 'images/Alansalbums.png' %}{% endif %}" class="card-img-top img-fluid w-100" style="height:180px;object-fit:cover;" alt="">
-            <div class="card-body small text-primary text-break">
-              <div class="fw-semibold">{{ l.artist }}</div>
-              <div>{{ l.title }}</div>
-              <div class="small">{{ l.formats }}</div>
-              <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
-              <div class="mt-2 d-flex gap-2 align-items-center">
-                <button class="btn btn-sm button-primary">Add to basket</button>
-                {% if l.release_notes %}
-                  <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#notes-{{ l.pk }}">Notes</button>
-                {% endif %}
-              </div>
-              {% if l.release_notes %}
-              <div class="collapse mt-2" id="notes-{{ l.pk }}">
-                <div class="card card-body small text-primary">{{ l.release_notes }}</div>
-              </div>
-              {% endif %}
-            </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   <h4 class="mb-2">All listings</h4>
-  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-3">
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-3" data-section="all">
     {% for l in listings %}
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card h-100">
@@ -55,18 +66,29 @@
             <div class="fw-semibold">{{ l.artist }}</div>
             <div>{{ l.title }}</div>
             <div class="small">{{ l.formats }}</div>
-            <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
+            <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% endif %}</div>
             <div class="mt-2 d-flex gap-2 align-items-center">
               <button class="btn btn-sm button-primary">Add to basket</button>
+              {% if l.images.all %}
+                <button class="btn btn-sm button-primary check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
+                <div class="listing-images d-none" aria-hidden="true">
+                  {% for img in l.images.all %}
+                    <img src="{{ img.image.url }}" alt="{{ img.caption|default:'' }}" class="img-fluid">
+                  {% endfor %}
+                </div>
+              {% endif %}
               {% if l.release_notes %}
-                <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#notes-{{ l.pk }}">Notes</button>
+                <div class="position-relative notes-container">
+                  {# Make overlay id unique per card instance in the loop using the loop index #}
+                  {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-all-'|add:forloop.counter0 %}
+                  <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="all" aria-controls="{{ oid }}">Notes</button>
+                  <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="all">
+                    <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                  </div>
+                  {% endwith %}
+                </div>
               {% endif %}
             </div>
-            {% if l.release_notes %}
-            <div class="collapse mt-2" id="notes-{{ l.pk }}">
-              <div class="card card-body small text-primary">{{ l.release_notes }}</div>
-            </div>
-            {% endif %}
           </div>
         </div>
       </div>

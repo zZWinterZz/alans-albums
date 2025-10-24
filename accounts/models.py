@@ -22,13 +22,13 @@ class Listing(models.Model):
     catalog_number = models.CharField(max_length=128, blank=True)
     formats = models.TextField(blank=True)
     release_notes = models.TextField(blank=True)
-    suggested_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # The listing price. Previously named `suggested_price`; renamed to `price`.
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     thumb = models.URLField(blank=True)
     resource_url = models.URLField(blank=True)
     release_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, blank=True)
     featured = models.BooleanField(default=False, help_text='Mark listing as featured')
 

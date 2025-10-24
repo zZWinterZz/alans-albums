@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django import forms
+import re
 
 
 def staff_required(view_func):
@@ -39,134 +40,151 @@ def manage_landing(request):
 def discogs_search(request):
     """Placeholder Discogs search view; will call API utility later."""
     query = request.GET.get('q', '')
+    filter_year = request.GET.get('year', '').strip() or None
+    filter_format = request.GET.get('format', '').strip() or None
+    filter_country = request.GET.get('country', '').strip() or None
+    try:
+        page = int(request.GET.get('page', '1'))
+        if page < 1: page = 1
+    except Exception:
+        page = 1
     results = None
+    pagination = {}
     if query:
         # Call the Discogs API helper. It will use Django cache and handle
         # retries/backoff. Ensure DISCOGS_TOKEN is set in the environment.
         try:
-            raw_results = discogs_search_api(query, page=1, per_page=12)
+            # Request pagination info so we can present prev/next links
+            maybe = discogs_search_api(
+                query, page=page, per_page=12, year=filter_year, format_=filter_format, country=filter_country, return_pagination=True
+            )
+            if isinstance(maybe, tuple):
+                raw_results, pagination = maybe
+            else:
+                raw_results = maybe
+                pagination = {}
         except Exception:
             raw_results = []
+            pagination = {}
 
-        # For each search hit, attempt to fetch the full release details so we
-        # can present Artist / Title / Year / Formats / Suggested price.
+        # Build result cards from the search response only (avoid N+1 remote calls)
         results = []
+        # collect raw items first so we can apply a secondary ordering
+        raw_items = []
         for r in (raw_results or []):
-            release = None
+            # use fields provided by the search hit to populate the card quickly
             release_id = r.get('id')
-            if not release_id:
-                # try to parse id from resource_url like /releases/12345
-                resource = r.get('resource_url') or ''
-                if resource and '/releases/' in resource:
-                    try:
-                        release_id = int(resource.rstrip('/').split('/')[-1])
-                    except Exception:
-                        release_id = None
-            if release_id:
-                try:
-                    release = discogs_get_release(release_id)
-                except Exception:
-                    release = None
+            artists = ''
+            # search hits sometimes include 'title' with artist/title combined,
+            # but may also include separate fields
+            title = r.get('title') or ''
+            release_year = r.get('year') or ''
+            country = r.get('country') or r.get('country_code') or ''
+            # formats in search hits can be in 'format' or 'format_title'
+            formats = r.get('format') or r.get('format_title') or ''
+            formats_lines = [formats] if formats else []
+            catalog_number = r.get('catno') or ''
+            release_notes = ''
+            suggested_price = ''
 
-            # Extract display fields with fallbacks to the search hit
-            if release:
-                artists = ', '.join([
-                    a.get('name') for a in release.get('artists', []) if a.get('name')
-                ])
-                title = release.get('title') or r.get('title', '')
-                year = release.get('year') or r.get('year', '')
-                country = release.get('country') or ''
-                # Extract catalog numbers from labels if present
-                label_catnos = [lbl.get('catno') for lbl in release.get('labels', []) if lbl.get('catno')]
-                catalog_number = '; '.join(label_catnos) if label_catnos else ''
-                # Build a richer, line-oriented description for formats so we
-                # surface details like 'embossed', 'gatefold', qty and free-text
-                # that Discogs returns.
-                formats_lines = []
-                for f in release.get('formats', []):
-                    parts = []
-                    name = f.get('name')
-                    if name:
-                        parts.append(name)
-                    # omit qty per request; only include free-text and descriptions
-                    text = f.get('text')
-                    if text:
-                        parts.append(text)
-                    descs = f.get('descriptions') or []
-                    if descs:
-                        parts.append(', '.join(descs))
-                    line = ' — '.join([p for p in parts if p])
-                    if line:
-                        formats_lines.append(line)
-
-                # Include release-level notes which sometimes contain details
-                # like embossing or special packaging. (Do not surface styles here.)
-                # Move release notes to their own field so the template can
-                # render them in a collapsible area (many notes are long).
-                release_notes = release.get('notes') or ''
-
-                formats = '; '.join(formats_lines)
-                # Determine a GBP-only suggested price. Prefer marketplace price_suggestions
-                suggested_price = ''
-                try:
-                    ps = discogs_price_suggestions(release_id) or {}
-                    # look for a GBP suggestion
-                    for k, v in ps.items():
-                        cur = (v.get('currency') or '').strip().upper()
-                        if cur in ('GBP', '£'):
-                            val = v.get('value')
-                            try:
-                                suggested_price = f"{float(val):.2f}"
-                                break
-                            except Exception:
-                                suggested_price = str(val)
-                                break
-                except Exception:
-                    suggested_price = ''
-
-                if not suggested_price:
-                    # fallback to community price or lowest_price (assume GBP if provided)
-                    cp = release.get('community', {}).get('price')
-                    lp = release.get('lowest_price')
-                    for cand in (cp, lp):
-                        if cand:
-                            try:
-                                suggested_price = f"{float(cand):.2f}"
-                                break
-                            except Exception:
-                                suggested_price = str(cand)
-                                break
-            else:
-                # Best-effort fallbacks
-                # Some search hits include 'title' containing artist/title; prefer dedicated fields
-                artists = ''
-                title = r.get('title', '')
-                year = r.get('year', '')
-                formats = r.get('format') or r.get('format_title') or ''
-                formats_lines = [formats] if formats else []
-                suggested_price = ''
-                # try common fallback keys for catalog/label info
-                catalog_number = r.get('catno') or r.get('label') or ''
-
-            results.append({
+            item = {
                 'artist': artists,
                 'title': title,
-                'year': year,
-                'country': country if 'country' in locals() else '',
-                'catalog_number': catalog_number if 'catalog_number' in locals() else '',
+                'year': release_year,
+                'country': country,
+                'catalog_number': catalog_number,
                 'formats': formats,
                 'formats_lines': formats_lines,
-                'release_notes': release_notes if 'release_notes' in locals() else '',
+                'release_notes': release_notes,
                 'suggested_price': suggested_price,
                 'thumb': r.get('thumb', ''),
                 'resource_url': r.get('resource_url'),
                 'release_id': release_id,
-            })
+            }
+
+            # Apply the same post-filters (year, format, country) against the
+            # lightweight item to ensure the UI only shows matching cards.
+            passes = True
+            if filter_year:
+                try:
+                    if int(str(item.get('year') or '')) != int(filter_year):
+                        passes = False
+                except Exception:
+                    if str(item.get('year') or '').strip() != str(filter_year).strip():
+                        passes = False
+
+            if passes and filter_format:
+                ff = str(filter_format).strip().lower()
+                fmt_join = ' '.join([str(item.get('formats') or '' )] + [str(x) for x in (item.get('formats_lines') or [])]).lower()
+                if ff not in fmt_join:
+                    passes = False
+
+            if passes and filter_country:
+                fc = str(filter_country).strip().lower()
+                if fc and fc not in str(item.get('country') or '').lower():
+                    passes = False
+
+            if not passes:
+                continue
+
+            raw_items.append(item)
+
+        # Apply secondary ordering: keep Discogs API order between groups,
+        # but for multiple variants of the same release (same artist+title)
+        # sort those variants by year descending. This preserves relevance
+        # as returned by Discogs but surfaces newer pressings first within a
+        # group of otherwise-identical records.
+        ordered = []
+        def norm(s):
+            try:
+                return (s or '').strip().lower()
+            except Exception:
+                return ''
+
+        # build mapping from key -> list preserving appearance order
+        groups = {}
+        first_seen_index = {}
+        for idx, it in enumerate(raw_items):
+            key = (norm(it.get('artist')), norm(it.get('title')))
+            groups.setdefault(key, []).append(it)
+            if key not in first_seen_index:
+                first_seen_index[key] = idx
+
+        # iterate groups in order of first appearance
+        for key, _ in sorted(first_seen_index.items(), key=lambda x: x[1]):
+            group = groups.get(key) or []
+            if len(group) <= 1:
+                ordered.extend(group)
+                continue
+            # sort group by year desc (missing years go last)
+            def year_key(it):
+                y = it.get('year')
+                try:
+                    return -int(y) if y not in (None, '') else float('inf')
+                except Exception:
+                    return float('inf')
+
+            sorted_group = sorted(group, key=year_key)
+            ordered.extend(sorted_group)
+
+        results = ordered
     has_token = bool(__import__('os').environ.get('DISCOGS_TOKEN'))
     context = {
         'query': query,
         'results': results,
         'has_token': has_token,
+        'year': filter_year or '',
+        'format': filter_format or '',
+        'country': filter_country or '',
+        'pagination': pagination,
+        'page': page,
+        # normalize pagination helpers for templates
+        'cur_page': int(pagination.get('page')) if (pagination and pagination.get('page')) else page,
+        'total_pages': int(pagination.get('pages')) if (pagination and pagination.get('pages')) else None,
+        'has_prev': (int(pagination.get('page')) > 1) if (pagination and pagination.get('page')) else (page > 1),
+        'has_next': ((int(pagination.get('page')) < int(pagination.get('pages'))) if (pagination and pagination.get('page') and pagination.get('pages')) else (not bool(pagination))) ,
+        'prev_page': (int(pagination.get('page')) - 1) if (pagination and pagination.get('page')) else max(1, page - 1),
+        'next_page': (int(pagination.get('page')) + 1) if (pagination and pagination.get('page')) else (page + 1),
     }
     return render(request, 'discogs_search.html', context)
 
@@ -183,6 +201,59 @@ def discogs_price_suggestions_view(request, release_id: int):
         data = discogs_price_suggestions(release_id)
     except Exception:
         data = {}
+    return JsonResponse(data)
+
+
+
+@login_required
+@staff_required
+def discogs_release_details_view(request, release_id: int):
+    """Return minimal release details (notes) as JSON for on-demand fetching."""
+    data = {'notes': ''}
+    try:
+        rel = discogs_get_release(int(release_id))
+        if rel:
+            raw = rel.get('notes') or ''
+            # Instead of stripping URL BBCode completely (which made some
+            # surrounding text look odd after removal), mark URL blocks so
+            # the UI can highlight them for manual deletion. We replace
+            # [url=...]text[/url] and [url]text[/url] with a visible token
+            # like [[REMOVE:text]] so the frontend can style it.
+            note = raw
+            try:
+                # replace [url=...]text[/url] -> [[REMOVE:text]] (keep inner text)
+                note = re.sub(r"\[url=[^\]]*\](.*?)\[/url\]", r"[[REMOVE:\1]]", note, flags=re.IGNORECASE|re.DOTALL)
+                # replace [url]text[/url]
+                note = re.sub(r"\[url\](.*?)\[/url\]", r"[[REMOVE:\1]]", note, flags=re.IGNORECASE|re.DOTALL)
+                # replace image tags with a small marker
+                note = re.sub(r"\[img\].*?\[/img\]", "[[REMOVE:image]]", note, flags=re.IGNORECASE|re.DOTALL)
+                # remove simple BBCode tags like [b], [i], [u], [size], [quote]
+                note = re.sub(r"\[((?:b|i|u|size|quote))(?:=[^\]]*)?\](.*?)\[/\1\]", r"\2", note, flags=re.IGNORECASE|re.DOTALL)
+            except Exception:
+                note = raw
+
+            # collapse repeated whitespace and trim
+            note = re.sub(r"\s+", " ", note).strip()
+            data['notes'] = note
+            # build formats_lines similarly to the previous detailed view
+            formats_lines = []
+            for f in rel.get('formats', []):
+                parts = []
+                name = f.get('name')
+                if name:
+                    parts.append(name)
+                text = f.get('text')
+                if text:
+                    parts.append(text)
+                descs = f.get('descriptions') or []
+                if descs:
+                    parts.append(', '.join(descs))
+                line = ' — '.join([p for p in parts if p])
+                if line:
+                    formats_lines.append(line)
+            data['formats_lines'] = formats_lines
+    except Exception:
+        data['notes'] = ''
     return JsonResponse(data)
 
 
@@ -204,7 +275,9 @@ def create_listing(request):
         'formats': request.GET.get('formats', ''),
         'release_notes': request.GET.get('release_notes', ''),
         'thumb': request.GET.get('thumb', ''),
-        'suggested_price': request.GET.get('suggested_price', ''),
+        # Do not prefill price or condition from GET params to avoid unintended injection via links
+        'price': '',
+        'featured': False,
     }
 
     if release_id:
@@ -236,33 +309,9 @@ def create_listing(request):
                 if imgs:
                     first = imgs[0] or {}
                     pre['thumb'] = first.get('uri') or first.get('resource_url') or first.get('uri150') or pre.get('thumb', '')
-                # normalize suggested price to GBP-only numeric string when possible
-                try:
-                    ps = discogs_price_suggestions(int(release_id)) or {}
-                    for k, v in ps.items():
-                        cur = (v.get('currency') or '').strip().upper()
-                        if cur in ('GBP', '£'):
-                            val = v.get('value')
-                            try:
-                                pre['suggested_price'] = f"{float(val):.2f}"
-                                break
-                            except Exception:
-                                pre['suggested_price'] = str(val)
-                                break
-                except Exception:
-                    pass
 
-                if not pre.get('suggested_price'):
-                    cp = release.get('community', {}).get('price')
-                    lp = release.get('lowest_price')
-                    for cand in (cp, lp):
-                        if cand:
-                            try:
-                                pre['suggested_price'] = f"{float(cand):.2f}"
-                                break
-                            except Exception:
-                                pre['suggested_price'] = str(cand)
-                                break
+
+
         except Exception:
             pass
 
@@ -271,12 +320,17 @@ def create_listing(request):
         from .models import Listing
 
         pdata = {k: request.POST.get(k, '') for k in pre.keys()}
-        # Convert numeric fields
-        suggested = None
+        # featured is a checkbox; normalize to boolean
         try:
-            suggested = float(pdata.get('suggested_price'))
+            featured_flag = bool(request.POST.get('featured'))
         except Exception:
-            suggested = None
+            featured_flag = False
+        # Convert numeric fields
+        price_val = None
+        try:
+            price_val = float(pdata.get('price'))
+        except Exception:
+            price_val = None
 
         listing = Listing.objects.create(
             artist=pdata.get('artist', ''),
@@ -286,11 +340,31 @@ def create_listing(request):
             catalog_number=pdata.get('catalog_number', ''),
             formats=pdata.get('formats', ''),
             release_notes=pdata.get('release_notes', ''),
-            suggested_price=suggested,
-            resource_url=request.GET.get('release_id') or '',
+            price=price_val,
+            # Use the release_id (if any) as the resource reference rather than accepting arbitrary resource_url via GET
+            resource_url=str(release_id) if release_id else '',
             thumb=pdata.get('thumb', ''),
             created_by=request.user if request.user.is_authenticated else None,
+            featured=featured_flag,
         )
+        # Handle uploaded images (optional)
+        try:
+            files = request.FILES.getlist('images')
+        except Exception:
+            files = []
+        if files:
+            from .models import ListingImage
+            for f in files:
+                if not f:
+                    continue
+                try:
+                    li = ListingImage(listing=listing, uploaded_by=request.user if request.user.is_authenticated else None)
+                    li.image = f
+                    li.save()
+                except Exception:
+                    # don't abort listing creation if an image fails to upload
+                    continue
+
         messages.success(request, f"Listing created for {listing.artist} - {listing.title}")
         return redirect(reverse('manage_discogs'))
 
@@ -314,7 +388,7 @@ class ListingForm(forms.ModelForm):
         model = Listing
         fields = [
             'artist', 'title', 'year', 'country', 'catalog_number', 'formats',
-            'release_notes', 'suggested_price', 'price', 'condition', 'thumb', 'featured'
+            'release_notes', 'price', 'condition', 'thumb', 'featured'
         ]
 
 
@@ -346,6 +420,13 @@ def listing_edit(request, pk: int):
         form = ListingForm(request.POST, request.FILES, instance=obj)
         if form.is_valid():
             form.save()
+            # If the form included a featured checkbox override, apply it explicitly
+            try:
+                if 'featured' in request.POST:
+                    obj.featured = bool(request.POST.get('featured'))
+                    obj.save(update_fields=['featured'])
+            except Exception:
+                pass
             # delete selected existing images (also allow deleting as part of save)
             delete_ids = request.POST.getlist('images_to_delete')
             deleted_count = 0
@@ -417,7 +498,12 @@ def store_list(request):
 
     featured = Listing.objects.filter(featured=True).order_by('-created_at')[:8]
 
-    qs = Listing.objects.all().order_by('-featured', '-created_at')
+    # Previously we excluded featured items from the All listings section to
+    # avoid duplicate DOM nodes. Templates now render unique overlay ids so
+    # it's fine to show featured items in the main listings as well (helpful
+    # for users who browse straight to the store). Keep featured items sorted
+    # to the top of the list.
+    qs = Listing.objects.order_by('-featured', '-created_at')
     if artist_q:
         qs = qs.filter(artist__icontains=artist_q)
     if title_q:

@@ -15,17 +15,19 @@
             <div class="fw-semibold">{{ l.artist }} — {{ l.title }} {% if l.featured %}<span class="badge bg-primary text-white">Featured</span>{% endif %}</div>
             <div class="small">{{ l.formats }}</div>
             {% if l.release_notes %}
-              <div class="mt-1">
-                <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#manage-notes-{{ l.pk }}">Notes</button>
-                <div class="collapse mt-1" id="manage-notes-{{ l.pk }}">
-                  <div class="card card-body small text-primary">{{ l.release_notes }}</div>
-                </div>
+              <div class="mt-1 position-relative notes-container">
+                  <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" aria-controls="{{ oid }}">Notes</button>
+                    {% with oid='manage-notes-'|add:l.pk|stringformat:"s" %}
+                    <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}">
+                      <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                    </div>
+                    {% endwith %}
               </div>
             {% endif %}
           </div>
         </div>
         <div class="d-flex gap-2 align-items-center mt-2 mt-sm-0">
-          <div class="fw-semibold text-primary">{% if l.price %}£ {{ l.price }}{% elif l.suggested_price %}£ {{ l.suggested_price }}{% endif %}</div>
+          <div class="fw-semibold text-primary">{% if l.price %}£ {{ l.price }}{% endif %}</div>
           <form method="post" action="{% url 'listing_toggle_featured' l.pk %}">{% csrf_token %}
             <button class="btn btn-sm button-primary">{% if l.featured %}Unfeature{% else %}Feature{% endif %}</button>
           </form>

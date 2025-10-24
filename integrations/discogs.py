@@ -19,8 +19,16 @@ def _get_token(token: Optional[str] = None) -> Optional[str]:
     return token or os.environ.get("DISCOGS_TOKEN")
 
 
-def _cache_key_search(q: str, type_: str, page: int, per_page: int) -> str:
-    return f"discogs:search:{q}:{type_}:{page}:{per_page}"
+def _cache_key_search(q: str, type_: str, page: int, per_page: int, year: Optional[str] = None, format_: Optional[str] = None, country: Optional[str] = None) -> str:
+    # include optional filters in the cache key so different filter combos don't collide
+    parts = [str(q), str(type_), str(page), str(per_page)]
+    if year:
+        parts.append(f"year={year}")
+    if format_:
+        parts.append(f"format={format_}")
+    if country:
+        parts.append(f"country={country}")
+    return "discogs:search:" + ":".join(parts)
 
 
 def search(
@@ -30,6 +38,10 @@ def search(
     per_page: int = 12,
     token: Optional[str] = None,
     ttl: int = 3600,
+    year: Optional[str] = None,
+    format_: Optional[str] = None,
+    country: Optional[str] = None,
+    return_pagination: bool = False,
 ) -> List[Dict[str, Any]]:
     """Search Discogs database and return list of result dicts.
 
@@ -40,7 +52,7 @@ def search(
     if not q:
         return []
 
-    key = _cache_key_search(q, type_, page, per_page)
+    key = _cache_key_search(q, type_, page, per_page, year=year, format_=format_, country=country)
     cached = cache.get(key)
     if cached is not None:
         return cached
@@ -52,6 +64,15 @@ def search(
 
     url = f"{BASE_URL}/database/search"
     params = {"q": q, "type": type_, "page": page, "per_page": per_page}
+    # Optional filters supported by the Discogs API
+    if year:
+        params["year"] = year
+    if format_:
+        # Discogs expects 'format' as the key
+        params["format"] = format_
+    if country:
+        # Discogs supports country filtering on search
+        params["country"] = country
 
     attempts = 0
     backoff = 1.0
@@ -73,12 +94,15 @@ def search(
         if resp.status_code == 200:
             data = resp.json()
             results = data.get("results", [])
-            # cache and return
+            pagination = data.get('pagination') or {}
+            # cache only the results list for backward compatibility
             try:
                 cache.set(key, results, ttl)
             except Exception:
                 # cache failures shouldn't break the app
                 pass
+            if return_pagination:
+                return results, pagination
             return results
 
         if resp.status_code == 429:
