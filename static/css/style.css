@@ -86,7 +86,7 @@ main,
 
 
 /* Logo sizing and crop */
-.logo-link{display:inline-block;width:112px;height:112px;overflow:hidden;border-radius:999px;border:4px solid rgba(255,255,255,0.14);background:var(--background);box-sizing:content-box;position:relative}
+.logo-link{display:inline-block;width:112px;height:112px;margin-top: -20px;hidden;border-radius:999px;border:4px solid rgba(255,255,255,0.14);background:var(--background);box-sizing:content-box;position:relative}
 .logo-img{width:100%;height:100%;object-fit:cover;object-position:50% 22%;display:block}
 
 /* Mini-nav spacing */
