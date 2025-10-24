@@ -69,6 +69,8 @@
   var btn = document.getElementById('muteToggle');
     var icon = document.getElementById('muteIcon');
     if (video && btn && icon) {
+      // ensure loop is set programmatically too (some browsers/encodings mis-handle the attribute)
+      try { video.loop = true; } catch(e){}
       function updateIcon() {
         if (video.muted) {
           icon.className = 'fa-solid fa-volume-xmark fa-icon';
@@ -88,6 +90,14 @@
       });
       // Set initial icon
       updateIcon();
+      // Fallback: some browsers / video encodings can stop after one play — restart on ended to guarantee looping
+      video.addEventListener('ended', function() {
+        try {
+          video.currentTime = 0;
+          var p = video.play();
+          if (p && p.catch) p.catch(function(){ /* ignore play() promise rejection */ });
+        } catch(e) { /* ignore */ }
+      });
     }
   });
 </script>
