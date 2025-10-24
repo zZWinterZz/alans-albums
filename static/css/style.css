@@ -45,7 +45,7 @@ main,
 .btn-outline-light:hover{color:var(--accent)}
 
 /* Nav row (flex-based) and centered logo */
-.navbar{position:fixed;top:0;left:0;right:0;padding-top:0.25rem;padding-bottom:0.25rem;margin-top:0;z-index:1100}
+.navbar{position:fixed;top:0;left:0;right:0;padding-top:0.25rem;padding-bottom:0.25rem;margin-top:15px;z-index:1100}
 
 /* Hero section styles (site homepage) */
 
@@ -97,12 +97,12 @@ main,
 
 /* Responsive logo sizes */
 @media (max-width: 991.98px){
-    .logo-link{margin-top:-10px}
+    .logo-link{margin-top:-25px}
     
 }
 
 @media (max-width: 767.98px){
-    .logo-link{margin-top:-16px}
+    .logo-link{margin-top:-31px}
     
 }
 
