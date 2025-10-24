@@ -120,7 +120,42 @@ main,
 .nav-right .navbar-nav .nav-item{margin-left:.4rem}
 
 /* Nav surface (pill) */
+
 .nav-surface{background:var(--card-surface);padding:4px 30px;border-radius:999px;display:inline-flex;align-items:center;gap:34px;box-shadow:0 6px 18px rgba(0,0,0,0.08);position:relative;min-width:440px}
+
+/* Small-screen navbar spacing: keep side padding internal (nav-surface)
+   and keep bottom spacing external on the navbar so the centered logo
+   doesn't overlap navigation items. User requested less side padding and
+   more bottom spacing. */
+@media (max-width: 767.98px){
+    /* remove left/right padding from the fixed navbar itself */
+    /* keep nav-surface as the internal padded pill; further reduce horizontal
+       padding so it fits better on narrow screens */
+    .nav-surface{
+        padding-left: 6px;
+        padding-right: 6px;
+        gap: 40px;
+        min-width: unset; /* allow it to shrink rather than forcing overflow */
+    }
+
+    /* ensure the site content still accounts for the fixed nav height.
+       Add top padding to the body so the fixed navbar doesn't overlap
+       page content on small screens. */
+    body{padding-top:3rem}
+    .site-container{padding-top:3.75rem}
+
+    /* Reduce spacing between left-side nav items (Store / Contact) */
+    .nav-left .navbar-nav .nav-item{
+        margin-right: .2rem !important; /* was .5rem */
+    }
+
+    /* Increase gap between basket and user dropdown on the right so the
+       centered logo appears visually centered between left and right groups. */
+    .nav-right > div:first-child{
+        margin-right: 1.3rem !important;
+        margin-left: .2rem /* increases gap after cart */
+    }
+}
 
 /* Make room for the logo overlap */
 .site-container{padding-top:3.75rem}
