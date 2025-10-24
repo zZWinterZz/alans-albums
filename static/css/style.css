@@ -246,6 +246,21 @@ body.debug-center-guides .center-dot{
     padding: .5rem .75rem !important;
 }
 
+/* Ensure selects inside cards inherit theme colors even when the widget
+   isn't rendered with the .form-control class (some Django widgets omit it) */
+.card select{
+    background-color: var(--card-surface, #fff) !important;
+    color: var(--text-primary, #111) !important;
+    border: 1px solid var(--text-primary, rgba(0,0,0,0.08)) !important;
+    padding: .45rem .7rem !important;
+    border-radius: .6rem !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+.card select option{
+    color: var(--text-primary, #111) !important;
+}
+
 /* Ensure the entire card surface follows the active color scheme so cards
    (including manage landing/search cards) match themed surfaces. */
 .card{
