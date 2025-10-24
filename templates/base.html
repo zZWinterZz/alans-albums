@@ -46,7 +46,14 @@
               <a class="btn btn-sm dropdown-toggle button-primary" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.username }}"><i class="fa-solid fa-user fa-icon me-1" aria-hidden="true"></i> <span class="account-label">User</span> <span class="visually-hidden">({{ user.username }})</span></a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li><a class="dropdown-item" href="/dashboard/">Dashboard</a></li>
-                <li><a class="dropdown-item" href="/messages/">Messages</a></li>
+                <li>
+                  <a class="dropdown-item d-flex justify-content-between align-items-center" href="/messages/">
+                    <span>Messages</span>
+                    {% if messages_count and messages_count > 0 %}
+                      <span class="badge bg-danger ms-2">{{ messages_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
                 {% if user.is_staff %}
                 <li><a class="dropdown-item" href="{% url 'manage_landing' %}">Manage site</a></li>
                 {% endif %}

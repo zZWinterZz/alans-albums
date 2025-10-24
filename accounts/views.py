@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
+from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required, user_passes_test
 from integrations.discogs import search as discogs_search_api, get_release as discogs_get_release
 from integrations.discogs import price_suggestions as discogs_price_suggestions
@@ -10,6 +11,15 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django import forms
 import re
+from django.conf import settings
+from django.core.mail import send_mail
+from .forms import MessageForm, ReplyForm, GuestReplyForm
+from .models import (
+    Message, MessageImage, Reply, ReplyImage,
+    MessageRead, ReplyRead,
+)
+from django.utils import timezone
+from django.db.models import Q
 
 
 def staff_required(view_func):
@@ -21,11 +31,104 @@ def register(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Account created. You can now log in.')
+            messages.success(request, 'Account created. You can now log in.', extra_tags='account')
             return redirect('login')
     else:
         form = UserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
+
+
+def contact_view(request):
+    """Public contact form: saves Message/Images and emails site owner.
+
+    For subject 'selling' the form accepts image uploads (validated in the form).
+    """
+    form = MessageForm(request.POST or None, files=request.FILES or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            # Save the message
+            msg = form.save(commit=False)
+            if request.user.is_authenticated:
+                msg.user = request.user
+                # populate username automatically for authenticated users
+                msg.username = request.user.username
+            msg.save()
+
+            # Save uploaded images when present and when subject == selling
+            files = form.cleaned_data.get('images') or []
+            if msg.subject == Message.SUBJECT_SELLING or files:
+                for f in files:
+                    # limit is enforced by the form
+                    mi = MessageImage(message=msg)
+                    mi.image = f
+                    if request.user.is_authenticated:
+                        mi.uploaded_by = request.user
+                    mi.save()
+
+            # Notify site owner by email (best-effort)
+            subject = f"Contact form: {msg.subject}"
+            text = f"From: {msg.name} <{msg.email}>\n\n{msg.body}"
+            recipient_list = []
+            if getattr(settings, 'CONTACT_EMAIL', None):
+                recipient_list = [settings.CONTACT_EMAIL]
+            elif getattr(settings, 'DEFAULT_FROM_EMAIL', None):
+                recipient_list = [settings.DEFAULT_FROM_EMAIL]
+
+            if recipient_list:
+                try:
+                    send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, recipient_list, fail_silently=True)
+                except Exception:
+                    # don't block user flow on email errors
+                    pass
+
+            messages.success(request, 'Thanks — your message has been saved. We will reply shortly.', extra_tags='contact')
+            # If this was sent by a guest (no user), email them a secure reply link
+            if not msg.user:
+                try:
+                    from django.urls import reverse
+                    reply_url = request.build_absolute_uri(reverse('guest_reply', args=[str(msg.reference)]))
+                    guest_subject = f"Thanks for your message on {getattr(settings, 'SITE_NAME', 'the site')}"
+                    guest_text = (
+                        f"Hi {msg.name},\n\n"
+                        "Thanks for getting in touch. If you'd like to reply to this thread you can do so here:\n\n"
+                        f"{reply_url}\n\n"
+                        "Note: replies via this link accept text only."
+                    )
+                    send_mail(guest_subject, guest_text, settings.DEFAULT_FROM_EMAIL, [msg.email], fail_silently=True)
+                except Exception:
+                    pass
+
+            return redirect('contact')
+        except Exception:
+            messages.error(request, 'Unable to save your message right now. Please try again later.', extra_tags='contact')
+
+    contact_email = getattr(settings, 'CONTACT_EMAIL', None) or getattr(settings, 'DEFAULT_FROM_EMAIL', '')
+    return render(request, 'contact.html', {'form': form, 'contact_email': contact_email})
+
+
+class CustomLoginView(LoginView):
+    """Login view that respects a 'remember_me' checkbox on the login form.
+
+    If 'remember_me' is checked the session expiry will be extended (30 days).
+    Otherwise the session will expire on browser close (set_expiry(0)).
+    """
+    template_name = 'accounts/login.html'
+
+    def form_valid(self, form):
+        # Let the LoginView perform the usual login flow first
+        response = super().form_valid(form)
+        try:
+            remember = self.request.POST.get('remember_me')
+            if remember:
+                # 30 days
+                self.request.session.set_expiry(60 * 60 * 24 * 30)
+            else:
+                # expire on browser close
+                self.request.session.set_expiry(0)
+        except Exception:
+            # best effort; don't crash login
+            pass
+        return response
 
 
 @login_required
@@ -33,6 +136,270 @@ def register(request):
 def manage_landing(request):
     """Front-facing manage landing for staff tools."""
     return render(request, 'manage.html')
+
+
+@login_required
+def messages_inbox(request):
+    """Simple inbox view for staff to browse messages."""
+    if request.user.is_authenticated and not request.user.is_staff:
+        qs = Message.objects.filter(user=request.user).order_by('-created_at')
+    else:
+        qs = Message.objects.all().order_by('-created_at')
+
+    # Prefetch replies and reads to reduce DB hits
+    qs = qs.prefetch_related('replies', 'reads', 'replies__reads')
+
+    messages_list = []
+    total_unread = 0
+    for m in qs:
+        # Count unread replies relevant to this user
+        if request.user.is_staff:
+            unread_replies = m.replies.filter(Q(user__isnull=True) | Q(user__is_staff=False)).exclude(reads__user=request.user).count()
+            # initial message unread for staff when they haven't marked it
+            initial_unread = 0 if m.reads.filter(user=request.user, read_at__isnull=False).exists() else 1
+        else:
+            # owner's unread replies are replies by staff
+            unread_replies = m.replies.filter(user__is_staff=True).exclude(reads__user=request.user).count()
+            # initial_unread only counts when the message wasn't created by this user
+            if m.user and m.user != request.user:
+                initial_unread = 0 if m.reads.filter(user=request.user, read_at__isnull=False).exists() else 1
+            else:
+                initial_unread = 0
+
+        m.unread_count = unread_replies + initial_unread
+        # Determine who posted the last reply (if any) and expose flags that
+        # indicate whether the last reply was from staff or from the current
+        # viewing user. This ensures the 'Replied' badge reflects the last
+        # message author, not any historical reply.
+        try:
+            last = m.replies.order_by('-created_at').first()
+            if last and last.user:
+                m.staff_has_replied = bool(getattr(last.user, 'is_staff', False))
+                m.owner_has_replied = (request.user.is_authenticated and last.user == request.user)
+            else:
+                m.staff_has_replied = False
+                m.owner_has_replied = False
+        except Exception:
+            m.staff_has_replied = False
+            m.owner_has_replied = False
+        # If the current user is the owner, determine whether the message has
+        # been read by any staff member. If not, show a small 'Sent' indicator
+        # because the owner has sent a message that staff haven't seen yet.
+        try:
+            if (
+                m.user and request.user.is_authenticated and m.user == request.user
+                and not m.replies.exists()
+            ):
+                m.sent_unread_for_staff = not MessageRead.objects.filter(
+                    message=m, user__is_staff=True, read_at__isnull=False
+                ).exists()
+            else:
+                m.sent_unread_for_staff = False
+        except Exception:
+            m.sent_unread_for_staff = False
+        total_unread += m.unread_count
+        messages_list.append(m)
+
+    return render(request, 'messages.html', {'messages_list': messages_list, 'total_unread': total_unread})
+
+
+@login_required
+def message_thread(request, pk: int):
+    """View a message thread and allow replies by the message owner or staff."""
+    msg = get_object_or_404(Message, pk=pk)
+    # permission: staff or owner
+    if not (request.user.is_staff or (request.user.is_authenticated and msg.user and msg.user == request.user)):
+        # if guest message, show a read-only view instructing to use email/phone
+        return render(request, 'messages_thread.html', {'message': msg, 'can_reply': False})
+
+    # Mark the message thread as read for the current user (per-user marker)
+    try:
+        mr, _ = MessageRead.objects.get_or_create(message=msg, user=request.user)
+        mr.mark_read()
+    except Exception:
+        # best-effort; don't block the thread view on DB issues
+        pass
+
+    # Mark any replies authored by others as read for the current user
+    try:
+        for r in msg.replies.exclude(user=request.user):
+            if not r.reads.filter(user=request.user).exists():
+                ReplyRead.objects.create(reply=r, user=request.user, read_at=timezone.now())
+    except Exception:
+        pass
+
+    can_reply = True
+    form = None
+    if request.method == 'POST':
+        # Toggle replied checkbox action
+        if 'toggle_replied' in request.POST:
+            try:
+                # Checkbox presence indicates True; absence means False
+                new_val = 'replied' in request.POST
+                msg.replied = new_val
+                msg.save(update_fields=['replied'])
+            except Exception:
+                # Silently ignore toggle failures to avoid cross-page flash messages
+                pass
+            return redirect('message_thread', pk=msg.pk)
+
+        # Otherwise handle posting a reply
+        form = ReplyForm(request.POST, files=request.FILES or None)
+        if form.is_valid():
+            try:
+                r = Reply.objects.create(user=request.user, message=msg, body=form.cleaned_data['body'])
+                # mark the new reply as read for the author
+                try:
+                    ReplyRead.objects.create(reply=r, user=request.user, read_at=timezone.now())
+                except Exception:
+                    pass
+                files = form.cleaned_data.get('images') or []
+                for f in files:
+                    ri = ReplyImage(reply=r)
+                    ri.image = f
+                    ri.save()
+
+                # mark message as replied when owner/staff sends a reply
+                if not msg.replied:
+                    msg.replied = True
+                    msg.save(update_fields=['replied'])
+
+                # If the original message is from a guest (no user), send an email to them with the reply
+                if not msg.user:
+                    # only send email when owner/staff replies
+                    try:
+                        send_mail(
+                            f"Reply to your message: {msg.get_subject_display()}",
+                            r.body,
+                            settings.DEFAULT_FROM_EMAIL,
+                            [msg.email],
+                            fail_silently=True,
+                        )
+                    except Exception:
+                        pass
+
+                messages.success(request, 'Reply sent.', extra_tags='inbox')
+                return redirect('message_thread', pk=msg.pk)
+            except Exception:
+                messages.error(request, 'Unable to save reply.')
+    else:
+        form = ReplyForm()
+
+    # per-user read markers are handled via MessageRead/ReplyRead models above
+
+    return render(request, 'messages_thread.html', {'message': msg, 'can_reply': can_reply, 'form': form})
+
+
+def guest_reply(request, reference):
+    """Allow non-registered users to reply to their message via a secure UUID reference.
+
+    This view accepts only a short text reply (no images) and sends a notification to the
+    site owner/staff. It creates a Reply with no associated user.
+    """
+    msg = get_object_or_404(Message, reference=reference)
+    # If the message belongs to a registered user, direct them to the internal thread.
+    if msg.user:
+        return redirect('message_thread', pk=msg.pk)
+
+    form = GuestReplyForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            r = Reply.objects.create(user=None, message=msg, body=form.cleaned_data['body'])
+            # notify site owner/staff about guest reply
+            try:
+                subj = f"Guest replied to your message: {msg.get_subject_display()}"
+                text = f"Guest reply from {msg.name} <{msg.email}>:\n\n{r.body}"
+                recipients = []
+                if getattr(settings, 'CONTACT_EMAIL', None):
+                    recipients = [settings.CONTACT_EMAIL]
+                elif getattr(settings, 'DEFAULT_FROM_EMAIL', None):
+                    recipients = [settings.DEFAULT_FROM_EMAIL]
+                if recipients:
+                    send_mail(subj, text, settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=True)
+            except Exception:
+                pass
+
+            messages.success(request, 'Thanks — your reply has been recorded. The owner will be notified.', extra_tags='inbox')
+            return redirect('guest_reply', reference=reference)
+        except Exception:
+            messages.error(request, 'Unable to save your reply. Please try again later.', extra_tags='inbox')
+
+    return render(request, 'guest_reply.html', {'message': msg, 'form': form})
+
+
+@login_required
+def delete_reply(request, reply_id: int):
+    """Delete a single reply. Allowed for staff or the reply author.
+
+    Expects POST. Redirects back to the message thread.
+    """
+    r = get_object_or_404(Reply, pk=reply_id)
+    msg = r.message
+    # permission: staff or reply author
+    if not (request.user.is_staff or (request.user.is_authenticated and r.user and r.user == request.user)):
+        messages.error(request, 'Permission denied.')
+        return redirect('messages')
+
+    if request.method == 'POST':
+        try:
+            r.delete()
+            messages.success(request, 'Reply deleted.', extra_tags='inbox')
+        except Exception:
+            messages.error(request, 'Unable to delete reply.', extra_tags='inbox')
+    return redirect('message_thread', pk=msg.pk)
+
+
+@login_required
+def delete_message(request, pk: int):
+    """Delete a whole conversation (message + replies). Allowed for staff or owner.
+
+    Expects POST. Redirects to inbox after deletion.
+    """
+    m = get_object_or_404(Message, pk=pk)
+    if not (request.user.is_staff or (request.user.is_authenticated and m.user and m.user == request.user)):
+        messages.error(request, 'Permission denied.')
+        return redirect('messages')
+
+    if request.method == 'POST':
+        try:
+            m.delete()
+            messages.success(request, 'Conversation deleted.', extra_tags='inbox')
+            return redirect('messages')
+        except Exception:
+            messages.error(request, 'Unable to delete conversation.', extra_tags='inbox')
+            return redirect('message_thread', pk=pk)
+
+
+@login_required
+def delete_selected_messages(request):
+    """Delete multiple selected messages from the inbox.
+
+    The form should POST 'selected' values with message ids. Only messages
+    owned by the user (or all messages if staff) will be deleted.
+    """
+    if request.method != 'POST':
+        return redirect('messages')
+
+    ids = request.POST.getlist('selected')
+    if not ids:
+        messages.info(request, 'No messages selected.', extra_tags='inbox')
+        return redirect('messages')
+
+    qs = Message.objects.filter(pk__in=ids)
+    if not request.user.is_staff:
+        # Restrict to messages owned by the user
+        qs = qs.filter(user=request.user)
+
+    deleted = 0
+    for m in qs:
+        try:
+            m.delete()
+            deleted += 1
+        except Exception:
+            pass
+
+    messages.success(request, f'Deleted {deleted} message(s).', extra_tags='inbox')
+    return redirect('messages')
 
 
 @login_required

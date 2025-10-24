@@ -64,6 +64,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Provide SITE_NAME to templates (defaults to 'alansalbums')
+                "config.context_processors.site",
+                "accounts.context_processors.messages_count",
             ],
         },
     },
@@ -126,6 +129,20 @@ SITE_ID = 1
 # Authentication redirects
 LOGIN_REDIRECT_URL = "/"
 LOGIN_URL = "/accounts/login/"
+
+# Contact email used throughout the site (used by the contact form). Allow
+# overriding from environment for deployments.
+CONTACT_EMAIL = os.environ.get(
+    "CONTACT_EMAIL", "alansalbumsblackpool@gmail.com"
+)
+
+# Short display name for the site used in templates (e.g. show as the 'staff' name
+# when users view conversation threads). Can be overridden via the SITE_NAME env var.
+SITE_NAME = os.environ.get("SITE_NAME", "alansalbums")
+
+# Default From address used by django.core.mail.send_mail when no from_email
+# is supplied. Default to CONTACT_EMAIL but allow an env override.
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", CONTACT_EMAIL)
 
 # Security settings for production (when DEBUG is False)
 if not DEBUG:

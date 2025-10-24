@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Reply to your message{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="mb-3">
+    <a href="/" class="btn btn-sm btn-outline-secondary">Home</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3 class="h5">Reply to: {{ message.get_subject_display }} — {{ message.name }}</h3>
+      <p class="small text-muted">We received your message on {{ message.created_at }}. Use the form below to send a short reply.</p>
+
+      {% for msg in messages %}
+        <!-- django messages will be shown here by base.html usually -->
+      {% endfor %}
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          {{ form.body }}
+        </div>
+        <div class="text-end">
+          <button class="btn btn-primary">Send reply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

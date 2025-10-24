@@ -2,7 +2,80 @@
 {% block title %}Messages - Alan's Albums{% endblock %}
 {% block content %}
 <div class="container">
-  <h1>Messages (placeholder)</h1>
-  <p>This is a placeholder messages page.</p>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Messages</h1>
+    <div><a href="/admin/accounts/message/" class="btn btn-sm btn-outline-secondary">Open in admin</a></div>
+  </div>
+
+  {% if messages_list %}
+    {# Hidden single-delete form used by per-message Delete buttons (submitted via JS) #}
+    <form id="single-delete-form" method="post" style="display:none">{% csrf_token %}</form>
+    <form method="post" action="{% url 'messages_delete_selected' %}">
+      {% csrf_token %}
+      <div class="mb-2 d-flex justify-content-end">
+        <button type="submit" class="btn btn-sm btn-danger">Delete selected</button>
+      </div>
+      <div class="list-group">
+        {% for m in messages_list %}
+          <div class="list-group-item d-flex justify-content-between align-items-start" style="background:var(--card-surface, #fff); color:var(--text-primary, #111);">
+            <div class="d-flex align-items-start">
+              <div>
+                <a href="{% url 'message_thread' m.id %}" class="stretched-link text-decoration-none text-dark">
+                  <div class="fw-bold" style="color:var(--text-accent, var(--link-accent, var(--text-primary)));">{{ m.get_subject_display }} — {{ m.name }} {% if m.username %}({{ m.username }}){% endif %}</div>
+                </a>
+                <div class="small" style="color:var(--text-accent, var(--link-accent, var(--text-primary)));">Email: <a href="mailto:{{ m.email }}" style="color:inherit;">{{ m.email }}</a>{% if m.phone %} • Phone: <a href="tel:{{ m.phone|urlencode }}" style="color:inherit;">{{ m.phone }}</a>{% endif %} — {{ m.created_at }}</div>
+                <div class="mt-1" style="color:var(--text-primary);">{{ m.body|truncatechars:200 }}</div>
+              </div>
+            </div>
+            <div class="text-end d-flex align-items-start">
+              <div class="me-2 text-end">
+                {% if m.unread_count and m.unread_count > 0 %}
+                  <span class="badge bg-danger">{{ m.unread_count }}</span>
+                {% else %}
+                  {% if request.user.is_staff %}
+                    {% if m.staff_has_replied %}
+                      <span class="badge bg-success">Replied</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Read</span>
+                    {% endif %}
+                  {% else %}
+                    {% if m.owner_has_replied %}
+                      <span class="badge bg-success">Replied</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Read</span>
+                    {% endif %}
+                    {% if m.sent_unread_for_staff %}
+                      <span class="badge bg-info ms-1" title="Sent; not yet read by staff">Sent</span>
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              </div>
+              {# checkbox moved to the far right of the badges; stop propagation so the stretched-link isn't followed when clicking the box #}
+              <div class="form-check ms-2" style="align-self:flex-start;">
+                {% if request.user.is_staff %}
+                  <input class="form-check-input" type="checkbox" name="selected" value="{{ m.id }}" id="sel-{{ m.id }}" onclick="event.stopPropagation();" style="position:relative;z-index:2;">
+                {% elif m.user and request.user.is_authenticated and m.user == request.user %}
+                  <input class="form-check-input" type="checkbox" name="selected" value="{{ m.id }}" id="sel-{{ m.id }}" onclick="event.stopPropagation();" style="position:relative;z-index:2;">
+                {% else %}
+                  <input class="form-check-input" type="checkbox" name="selected" value="{{ m.id }}" id="sel-{{ m.id }}" disabled title="You cannot delete this message" onclick="event.stopPropagation();" style="position:relative;z-index:2;">
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </form>
+  {% else %}
+    <div class="alert alert-info">No messages yet.</div>
+  {% endif %}
 </div>
-{% endblock %}
+    <script>
+      function submitDeleteMessage(id) {
+        const form = document.getElementById('single-delete-form');
+        form.action = `/messages/${id}/delete/`;
+        if (confirm('Delete this conversation and all replies?')) {
+          form.submit();
+        }
+      }
+    </script>
+  {% endblock %}

@@ -2,7 +2,166 @@
 {% block title %}Contact - Alan's Albums{% endblock %}
 {% block content %}
 <div class="container">
-  <h1>Contact (placeholder)</h1>
-  <p>This is a placeholder page for Contact information.</p>
+  <style>
+    /* Map frame to match site theming */
+    .map-frame {
+      width: 100%;
+      height: 0;
+      padding-bottom: 56%; /* 16:9 */
+      position: relative;
+      border-radius: .75rem;
+      overflow: hidden;
+      border: 1px solid var(--link-accent);
+      box-shadow: 0 6px 18px color-mix(in srgb, var(--link-accent) 10%, transparent);
+      background: var(--card-surface);
+    }
+    .map-frame iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; display:block; }
+  </style>
+  <h1 class="mt-4">Contact</h1>
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 mt-4">
+      <div class="row g-4 align-items-start">
+        <div class="col-12 col-md-7">
+          
+          {% if messages %}
+            {% for message in messages %}
+              {% if 'contact' in message.tags %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          <div class="card mb-3">
+            <div class="card-body">
+              <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <!-- username is set automatically for authenticated users -->
+
+                <div class="mb-3">
+                  <label class="form-label">Your name</label>
+                  {{ form.name }}
+                  {% if form.name.errors %}
+                    <div class="text-danger small">{{ form.name.errors.as_text }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Phone (optional)</label>
+                  {{ form.phone }}
+                  {% if form.phone.errors %}
+                    <div class="text-danger small">{{ form.phone.errors.as_text }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Email</label>
+                  {{ form.email }}
+                  {% if form.email.errors %}
+                    <div class="text-danger small">{{ form.email.errors.as_text }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Subject</label>
+                  {{ form.subject }}
+                  {% if form.subject.errors %}
+                    <div class="text-danger small">{{ form.subject.errors.as_text }}</div>
+                  {% endif %}
+                </div>
+
+                {% if not request.user.is_authenticated %}
+                  <div class="alert alert-info">You must be logged in to use our direct messaging service. If you choose not to log in, the owner will contact you using the preference you provide below.</div>
+                  <div class="mb-3">
+                    <label class="form-label">Preferred contact method</label>
+                    {{ form.contact_preference }}
+                    {% if form.contact_preference.errors %}
+                      <div class="text-danger small">{{ form.contact_preference.errors.as_text }}</div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <div class="mb-3">
+                  <label class="form-label">Message</label>
+                  {{ form.body }}
+                  {% if form.body.errors %}
+                    <div class="text-danger small">{{ form.body.errors.as_text }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3" id="selling-images" style="display:none;">
+                  <label class="form-label">Images (only for selling)</label>
+                  <input type="file" name="images" class="form-control" accept="image/jpeg,image/png" multiple>
+                  <div class="form-text">You may upload up to 5 JPG/PNG images. Each must be under 5MB.</div>
+                </div>
+                <div class="d-flex justify-content-end">
+                  <button class="btn btn-primary" type="submit">Send message</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-5">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h2 class="h6 mb-0">Contact information</h2>
+            </div>
+            <div class="card-body">
+              <div class="d-flex flex-column">
+                <div class="d-flex align-items-start gap-2 mb-3">
+                  <i class="fa-solid fa-location-dot fa-fw" aria-hidden="true"></i>
+                  <div>
+                    <div class="fw-bold">Alan's Albums &amp; Retro</div>
+                    <div>78 Topping St<br>Blackpool<br>FY1 3AD</div>
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="fa-solid fa-phone fa-fw" aria-hidden="true"></i>
+                  <div><a href="tel:+447949936825">07949936825</a></div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                  <i class="fa-solid fa-envelope fa-fw" aria-hidden="true"></i>
+                  <div><a href="mailto:{{ contact_email }}">{{ contact_email }}</a></div>
+                </div>
+
+                <div class="d-flex align-items-start gap-2">
+                  <i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>
+                  <div class="small --text-primary">Open:<br>Mon–Sat 10:00–17:00<br>Sun 10:00-16:00</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body p-0" style="min-height:240px;">
+              <!-- Responsive Google map embed (full width below) -->
+              <div class="map-frame">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d18835.85848013217!2d-3.067536830246642!3d53.83428503580503!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x487b45f385f7d503%3A0xac731de080d953d9!2sAlan%E2%80%99s%20Albums%20%26%20Retro!5e0!3m2!1sen!2suk!4v1761304677481!5m2!1sen!2suk"
+                  allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+  (function(){
+    const subj = document.querySelector('select[name="subject"]');
+    const images = document.getElementById('selling-images');
+    if (!subj || !images) return;
+    function toggle(){
+      if (subj.value === 'selling') images.style.display = '';
+      else images.style.display = 'none';
+    }
+    subj.addEventListener('change', toggle);
+    // init
+    toggle();
+  })();
+</script>
 {% endblock %}
