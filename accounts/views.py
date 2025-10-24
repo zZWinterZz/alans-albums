@@ -169,6 +169,21 @@ def discogs_search(request):
 
         results = ordered
     has_token = bool(__import__('os').environ.get('DISCOGS_TOKEN'))
+    # ensure results is a list to avoid NoneType issues when checking length
+    if results is None:
+        results = []
+    # pagination helpers
+    per_page = 12
+    cur_page = int(pagination.get('page')) if (pagination and pagination.get('page')) else page
+    total_pages = int(pagination.get('pages')) if (pagination and pagination.get('pages')) else None
+    # if the API provided pagination info, use it; otherwise infer has_next from results length
+    has_prev = cur_page > 1
+    if total_pages is not None:
+        has_next = cur_page < total_pages
+    else:
+        # if we received at least `per_page` results, assume there may be a next page
+        has_next = (len(results) >= per_page)
+
     context = {
         'query': query,
         'results': results,
@@ -178,13 +193,12 @@ def discogs_search(request):
         'country': filter_country or '',
         'pagination': pagination,
         'page': page,
-        # normalize pagination helpers for templates
-        'cur_page': int(pagination.get('page')) if (pagination and pagination.get('page')) else page,
-        'total_pages': int(pagination.get('pages')) if (pagination and pagination.get('pages')) else None,
-        'has_prev': (int(pagination.get('page')) > 1) if (pagination and pagination.get('page')) else (page > 1),
-        'has_next': ((int(pagination.get('page')) < int(pagination.get('pages'))) if (pagination and pagination.get('page') and pagination.get('pages')) else (not bool(pagination))) ,
-        'prev_page': (int(pagination.get('page')) - 1) if (pagination and pagination.get('page')) else max(1, page - 1),
-        'next_page': (int(pagination.get('page')) + 1) if (pagination and pagination.get('page')) else (page + 1),
+        'cur_page': cur_page,
+        'total_pages': total_pages,
+        'has_prev': has_prev,
+        'has_next': has_next,
+        'prev_page': max(1, cur_page - 1),
+        'next_page': cur_page + 1,
     }
     return render(request, 'discogs_search.html', context)
 

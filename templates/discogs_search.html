@@ -39,50 +39,63 @@
       {% if results.0.thumb %}
         <link rel="preload" as="image" href="{{ results.0.thumb }}">
       {% endif %}
-      <div class="row">
+      <div class="discogs-results">
         {% for r in results %}
-          <div class="col-md-4 mb-3">
-            <div class="card h-100" {% if r.release_id %}data-release-id="{{ r.release_id }}"{% endif %}>
-              {% if r.thumb %}
-                {# Give the first two images higher priority and reserve layout space #}
-                {% if forloop.counter0 == 0 or forloop.counter0 == 1 %}
-                  <img src="{{ r.thumb }}" fetchpriority="high" class="card-img-top result-thumb" alt="{{ r.title }}">
-                {% else %}
-                  <img src="{{ r.thumb }}" loading="lazy" decoding="async" class="card-img-top result-thumb" alt="{{ r.title }}">
-                {% endif %}
-              {% endif %}
-              <div class="card-body">
-                <p class="mb-1">{{ r.artist }}</p>
-                <p class="fw-semibold mb-1">{{ r.title }}</p>
-                <p class="mb-1 small">{{ r.year }}{% if r.country %} · {{ r.country }}{% endif %}</p>
-                {% if r.catalog_number %}
-                <p class="mb-1 small">Catalog: {{ r.catalog_number }}</p>
-                {% endif %}
-                <div class="formats-area">
-                {% if r.formats_lines %}
-                <ul class="list-unstyled small mb-1">
-                  {% for line in r.formats_lines %}
-                    <li>{{ line }}</li>
-                  {% endfor %}
-                </ul>
-                {% else %}
-                <p class="mb-1 small">{{ r.formats }}</p>
-                {% endif %}
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                  <a href="{% url 'create_listing' %}?release_id={{ r.release_id }}{% if r.thumb %}&thumb={{ r.thumb|urlencode }}{% endif %}" class="btn btn-sm button-primary mt-2">Create listing</a>
-                  {% if r.release_id %}
-                    <a href="https://www.discogs.com/sell/history/{{ r.release_id }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm button-primary mt-2">Sell history</a>
+          <div class="card mb-2" {% if r.release_id %}data-release-id="{{ r.release_id }}"{% endif %}>
+            <div class="card-body p-3">
+              <div class="result-grid">
+                <div class="thumb">
+                  {% if r.thumb %}
+                    {% if forloop.counter0 == 0 or forloop.counter0 == 1 %}
+                      <img src="{{ r.thumb }}" fetchpriority="high" class="result-thumb rounded" alt="{{ r.title }}">
+                    {% else %}
+                      <img src="{{ r.thumb }}" loading="lazy" decoding="async" class="result-thumb rounded" alt="{{ r.title }}">
+                    {% endif %}
+                  {% else %}
+                    <div class="result-thumb bg-light d-flex align-items-center justify-content-center">No image</div>
                   {% endif %}
                 </div>
-                {% if r.release_id %}
-                <div class="mt-2 position-relative notes-container">
-                  <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="{{ r.release_id }}" aria-expanded="false" aria-controls="notes-{{ r.release_id }}">Notes</button>
-                  <div class="notes-overlay d-none" id="notes-{{ r.release_id }}">
-                    <div class="card card-body small">Loading notes…</div>
+
+                <div class="text-row1">
+                  <p class="mb-0 small text-muted">{{ r.artist }}</p>
+                  <p class="fw-semibold mb-1">{{ r.title }}</p>
+                </div>
+
+                <div class="text-row2">
+                  <p class="mb-1 small">{{ r.year }}{% if r.country %} · {{ r.country }}{% endif %}</p>
+                  {% if r.catalog_number %}
+                    <p class="mb-1 small">Catalog: {{ r.catalog_number }}</p>
+                  {% endif %}
+                  <div class="formats-area small mb-1">
+                    {% if r.formats_lines %}
+                      {% for line in r.formats_lines %}
+                        <span class="me-2">{{ line }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span>{{ r.formats }}</span>
+                    {% endif %}
                   </div>
                 </div>
-                {% endif %}
+
+                <div class="actions-row">
+                  <div class="row">
+                      <div class="col text-start">
+                        {% if r.release_id %}
+                          <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="{{ r.release_id }}" aria-expanded="false" aria-controls="notes-{{ r.release_id }}">Notes</button>
+                            <a href="https://www.discogs.com/sell/history/{{ r.release_id }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm button-primary">History</a>
+                          </div>
+                          <div class="notes-overlay d-none mt-1" id="notes-{{ r.release_id }}" data-release-pk="{{ r.release_id }}">
+                            <div class="card card-body small"></div>
+                          </div>
+                        {% endif %}
+                      </div>
+                      <div class="col">&nbsp;</div>
+                      <div class="col text-end">
+                        <a href="{% url 'create_listing' %}?release_id={{ r.release_id }}{% if r.thumb %}&thumb={{ r.thumb|urlencode }}{% endif %}" class="btn btn-sm button-primary">Create</a>
+                      </div>
+                    </div>
+                </div>
               </div>
             </div>
           </div>
@@ -100,8 +113,6 @@
             <li class="page-item">
               <a class="btn btn-sm button-primary" href="?q={{ query|urlencode }}&page={{ next_page }}&year={{ year|urlencode }}&format={{ format|urlencode }}&country={{ country|urlencode }}">Next</a>
             </li>
-          {% else %}
-            <li class="page-item disabled"><span class="btn btn-sm btn-secondary disabled">Next</span></li>
           {% endif %}
         </ul>
       </nav>
@@ -114,8 +125,27 @@
 {% endblock %}
 {% block extra_js %}
 <style>
-  /* Ensure Discogs search thumbnails reserve layout and use cover to avoid squashing */
-  .card .card-img-top.result-thumb,
+  /* Thumbnails for the new list view: small square on the left */
+  .discogs-results .result-thumb {
+    display: block !important;
+    width: 96px !important;
+    height: 96px !important;
+    object-fit: cover !important;
+    flex: 0 0 96px !important;
+  }
+  /* Grid layout for each result: image spans rows 1-2 on the left; two text rows on right; actions across bottom */
+  .discogs-results .result-grid {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem 1rem;
+    align-items: start;
+  }
+  .discogs-results .result-grid .thumb { grid-column: 1; grid-row: 1 / span 2; }
+  .discogs-results .result-grid .text-row1 { grid-column: 2; grid-row: 1; }
+  .discogs-results .result-grid .text-row2 { grid-column: 2; grid-row: 2; }
+  .discogs-results .result-grid .actions-row { grid-column: 1 / -1; grid-row: 3; }
+  /* Fallback for any other usages of result-thumb */
   img.result-thumb {
     display: block !important;
     width: 100% !important;
@@ -232,7 +262,19 @@ document.addEventListener('DOMContentLoaded', function(){
           else body.textContent = data.notes || '';
         }
         overlay.dataset.loaded = '1';
-      }catch(err){
+      } catch(err) {
         const body = overlay.querySelector('.card-body');
-        <!-- notes behavior delegated to static/js/main.js; prefetch handled globally -->
+        // Log the error and show a clear failure message; avoid referencing undefined `data`.
+        try {
+          console.error('Error fetching release details for', releaseId, err);
+        } catch (_e) {}
+        if (body) {
+          body.textContent = 'Failed to load notes.';
+        }
         overlay.dataset.loaded = '1';
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
