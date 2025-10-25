@@ -14,6 +14,16 @@ body{
     -moz-osx-font-smoothing:grayscale;
 }
 
+/* Ensure any 'muted' token maps to the theme's text-accent token so
+    muted text follows the active color scheme consistently. The schemes
+    may define --text-muted; override it here to point at --text-accent.
+*/
+body{ --text-muted: var(--text-accent); }
+
+/* Also provide a direct utility class so templates using .text-muted
+    immediately get the theme's accent color. */
+.text-muted{ color: var(--text-accent) !important; }
+
 /* Ensure the main site container and its inner container inherit the page background
    and allow surface elements (cards/pills) to use --card-surface as intended. */
 .site-container,
@@ -173,15 +183,17 @@ main,
 @media (max-width: 767.98px){
     .nav-center .logo-link{top:-18px}
     .dropdown-toggle{margin-right: 10px;}
-}
-
-/* On small screens show only the user icon for the account dropdown */
-@media (max-width: 767.98px){
     .account-label{display:none}
     .dropdown-toggle .fa-icon{margin-right:0}
     .dropdown-toggle{padding-left:8px;padding-right:8px}
 }
 
+/* On small screens show only the user icon for the account dropdown */
+@media (max-width: 767.98px){
+}
+@media (max-width: 575.98px) {
+    .p-3{padding: 0 !important;}
+}
 /* Note: keep nav-surface min-width consistent across sizes so it doesn't shrink */
 
 /* Ensure dropdowns inside the right nav align to the right edge */
@@ -216,6 +228,23 @@ main,
 .cart-icon svg{display:block;width:22px;height:22px}
 .cart-icon{display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px}
 .cart-icon:hover{background:rgba(255,255,255,0.06);text-decoration:none}
+/* Small numeric badge shown when basket has items */
+.cart-badge{
+    position:absolute;
+    top:2px;
+    right:2px;
+    transform: translate(30%,-30%);
+    background: var(--accent, #dc3545);
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 6px;
+    font-size: 0.65rem;
+    line-height: 1;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    pointer-events: none;
+}
 
 
 
@@ -282,6 +311,40 @@ body.debug-center-guides .center-dot{
     border-radius: .6rem !important; /* rounded inputs */
     padding: .5rem .75rem !important;
 }
+
+/* Cross-template helpers: keep the price input / pound sign and the
+   featured toggle alignment consistent across create/edit/list pages.
+   These were previously duplicated inside templates; defining them here
+   ensures any manual tweaks (left margin, scale) apply everywhere. */
+.price-with-pound { position: relative; display: block; width: 100%; }
+.price-with-pound .pound { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-primary); pointer-events: none; opacity: 0.95; font-weight: 500; z-index: 3; font-size: 0.95rem; }
+.price-with-pound .price-input, .price-with-pound input { padding-left: 52px !important; background: transparent; color: var(--text-primary); border: 1px solid var(--text-primary); border-radius: .375rem; min-width: 0; box-sizing: border-box; position: relative; z-index: 1; font-size: 0.95rem; width:100% !important; }
+.price-with-pound .pound { z-index:3 !important; left:14px !important; }
+
+/* Reusable featured toggle column helper used in listing create/edit pages */
+.featured-toggle-col { min-width: 75px; min-height: 52px; padding:6px 6px 4px 6px; box-sizing:border-box; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; }
+.featured-toggle-col .form-label { font-size:0.95rem; margin-bottom:0.25rem; line-height:1; }
+.featured-toggle-col .form-switch { display: inline-block; margin-top: 0.2rem; padding-left: 0.5em; }
+.featured-toggle-col .form-check-input, .featured-toggle-col .form-switch input.form-check-input { transform: scale(1.18); transform-origin: left center; margin-left: 0.12rem; }
+
+/* Small fixed-width price box used in store list cards */
+.price-box { display:inline-block; width:66px; text-align:center; }
+
+/* Visually hide the scrollbar on listing notes textareas but keep scrolling
+   functionality and keyboard focus. Targets both rendered form widgets (by
+   name) and any element using .notes-textarea if added later. */
+textarea[name="release_notes"], textarea.notes-textarea {
+    overflow-y: auto; /* keep vertical scrolling enabled */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
+    padding-right: 6px; /* ensure text doesn't get clipped where scrollbars would be */
+}
+/* WebKit-based browsers: hide the scrollbar track/thumb but preserve scrolling */
+textarea[name="release_notes"]::-webkit-scrollbar,
+textarea.notes-textarea::-webkit-scrollbar {
+    width: 0; height: 0; display: none;
+}
+
 
 /* Ensure selects inside cards inherit theme colors even when the widget
    isn't rendered with the .form-control class (some Django widgets omit it) */
@@ -378,6 +441,36 @@ body.debug-center-guides .center-dot{
     text-decoration: none !important;
 }
 
+/* Themed form controls: ensure store filters and manage inputs (price/stock)
+   follow the active color scheme. Applies to normal and small inputs. */
+.form-control,
+.form-select,
+.form-control-sm,
+input[type="number"],
+textarea.form-control{
+    background: var(--card-surface) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent) !important;
+    box-shadow: none !important;
+}
+.form-control::placeholder,
+.form-select::placeholder{
+    color: var(--text-accent) !important;
+}
+.form-control:focus,
+.form-select:focus{
+    border-color: var(--link-accent) !important;
+    box-shadow: 0 0 0 0.12rem color-mix(in srgb, var(--link-accent) 18%, transparent) !important;
+    outline: none !important;
+}
+
+/* small numeric inputs sometimes use spinner controls; ensure the visible part
+   still matches the theme */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button{
+    opacity: 0.6;
+}
+
 /* Utility classes to map markup to theme tokens used in templates */
 .bg-surface {
     background: var(--card-surface) !important;
@@ -444,17 +537,54 @@ body.debug-center-guides .center-dot{
     background:var(--card-surface);
 }
 
+/* Make the viewer navigation and close buttons match the site's primary
+   button styling and be a bit larger for easier tapping. */
+.image-viewer .iv-prev,
+.image-viewer .iv-next,
+.image-viewer .iv-close{
+    background: var(--background) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--text-primary) !important;
+    padding: .6rem 1rem !important;
+    border-radius: .6rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    font-size: 1.6rem !important;
+    line-height: 1 !important;
+    min-width: 50px !important;
+    height: 50px !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+.image-viewer .iv-prev:hover,
+.image-viewer .iv-next:hover,
+.image-viewer .iv-close:hover,
+.image-viewer .iv-prev:focus,
+.image-viewer .iv-next:focus,
+.image-viewer .iv-close:focus{
+    background: var(--text-primary) !important;
+    color: var(--background) !important;
+    border-color: var(--background) !important;
+    outline: none !important;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.22);
+}
+
+/* Slightly offset the close button so it visually aligns with larger size */
+.image-viewer .iv-inner .iv-close{ position:absolute; right:14px; top:14px; z-index:13001; padding:.5rem .7rem; height:50px; min-width:50px }
+
+/* increase counter size for readability */
+.image-viewer .iv-counter{ font-size: 1.05rem !important; font-weight:600; color: var(--text-muted) !important; padding: 0 .25rem }
+
 /* temporary reset animation class used when snapping back to center */
 .image-viewer .iv-img.iv-resetting{ transition: transform .22s cubic-bezier(.2,.9,.2,1) !important; }
 
     /* keep will-change for smoother animations */
     .image-viewer .iv-img{ will-change: transform; }
-.image-viewer .iv-prev,.image-viewer .iv-next,.image-viewer .iv-close,.image-viewer .iv-zoom-toggle{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text-primary);padding:.35rem .6rem;border-radius:.5rem}
-.image-viewer .iv-prev,.image-viewer .iv-next{font-size:1.4rem}
 .image-viewer.d-none{display:none}
 
 /* position close button at the top-right of the viewer inner area */
-.image-viewer .iv-inner .iv-close{position:absolute;right:18px;top:18px;z-index:13001}
+.image-viewer.d-none{display:none}
 
 /* ensure controls are visible and not clipped */
 .image-viewer .iv-controls{z-index:13000;flex:0 0 auto;margin-top:12px}
@@ -466,6 +596,83 @@ body.debug-center-guides .center-dot{
 /* When zoomed, make cursor indicate draggable area */
 .image-viewer .iv-img-wrap.zoom-active{cursor:grab}
 .image-viewer .iv-img-wrap.zoom-active:active{cursor:grabbing}
+
+/* Site toasts (client-side) */
+#site-toasts.site-toasts{
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 14000;
+    pointer-events: none; /* allow clicks through when empty */
+}
+.site-toast{
+    pointer-events: auto;
+    min-width: 220px;
+    max-width: 420px;
+    background: var(--card-surface) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--text-primary) !important;
+    padding: .6rem .75rem;
+    border-radius: .65rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.16);
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+    font-size: .95rem;
+    line-height: 1.2;
+}
+.site-toast .toast-body{flex:1}
+.site-toast .toast-close{background:transparent;border:none;color:var(--text-primary);font-size:1.05rem;padding:.2rem .4rem;border-radius:.45rem}
+.site-toast.error{background: color-mix(in srgb, #dc3545 6%, var(--card-surface)) !important; border-color: color-mix(in srgb, #dc3545 14%, transparent) !important}
+.site-toast.info{background: color-mix(in srgb, var(--link-accent) 6%, var(--card-surface)) !important; border-color: color-mix(in srgb, var(--link-accent) 14%, transparent) !important}
+
+/* entrance animation */
+.site-toast{-webkit-transform: translateY(6px) scale(.99); transform: translateY(6px) scale(.99); opacity:0; animation: toast-in .18s ease forwards}
+@keyframes toast-in{ to { transform: translateY(0) scale(1); opacity:1 } }
+
+
+/* Responsive adjustments for basket list on small screens
+   - Stack the thumbnail + info and move controls (price/remove) under them
+   - Keep desktop layout unchanged. */
+@media (max-width: 767.98px) {
+    .basket-list .list-group-item{
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: .6rem !important;
+    }
+
+    /* Top row: thumbnail + info should sit side-by-side and fill width */
+    .basket-list .b-item-main{
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: .75rem !important;
+        width: 100%;
+    }
+
+    /* Make controls full width and appear below the main info */
+    .basket-list .basket-controls{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        margin-top: .35rem !important;
+        text-align: left !important; /* price on left, remove on right looks better on small screens */
+        gap: .5rem;
+    }
+
+    /* Slightly smaller thumb on very small screens */
+    .basket-list .basket-thumb img{ width:56px !important; height:56px !important; object-fit:cover !important; }
+
+    /* Ensure the price stays readable and does not wrap awkwardly */
+    .basket-list .basket-controls .fw-semibold{ font-size: 1rem !important; }
+
+    /* Reduce the top margin for the remove button so it sits neatly in the controls row */
+    .basket-list .basket-controls .btn{ margin-top: 0 !important; }
+}
 
 
 

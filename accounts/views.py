@@ -13,7 +13,7 @@ from django import forms
 import re
 from django.conf import settings
 from django.core.mail import send_mail
-from .forms import MessageForm, ReplyForm, GuestReplyForm
+from .forms import MessageForm, ReplyForm, GuestReplyForm, ProfileForm
 from .models import (
     Message, MessageImage, Reply, ReplyImage,
     MessageRead, ReplyRead,
@@ -53,6 +53,16 @@ def contact_view(request):
                 # populate username automatically for authenticated users
                 msg.username = request.user.username
             msg.save()
+
+            # Mark the message as read for the sender (if a registered user).
+            # Without this, the context processor counts the owner's own message
+            # as "unread" because there is no MessageRead record for them.
+            try:
+                if msg.user:
+                    MessageRead.objects.create(message=msg, user=msg.user, read_at=timezone.now())
+            except Exception:
+                # best-effort; don't block saving the message on read-marker failures
+                pass
 
             # Save uploaded images when present and when subject == selling
             files = form.cleaned_data.get('images') or []
@@ -136,6 +146,47 @@ class CustomLoginView(LoginView):
 def manage_landing(request):
     """Front-facing manage landing for staff tools."""
     return render(request, 'manage.html')
+
+
+@login_required
+def dashboard_view(request):
+    """Render the user dashboard showing recent orders and account actions.
+
+    - Regular users see only their orders.
+    - Staff users see all orders.
+    """
+    # Import locally to avoid circular imports at module import time
+    try:
+        from .models import Order
+    except Exception:
+        Order = None
+
+    orders = []
+    if Order:
+        if request.user.is_staff:
+            orders = Order.objects.all().order_by('-created_at')
+        else:
+            orders = Order.objects.filter(user=request.user).order_by('-created_at')
+
+    return render(request, 'dashboard.html', {'orders': orders})
+
+
+@login_required
+def profile_edit(request):
+    """Allow users to edit basic profile fields: username, email, first/last name.
+
+    Password changes should use Django's built-in password change views.
+    """
+    form = ProfileForm(request.POST or None, instance=request.user)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            form.save()
+            messages.success(request, 'Profile updated.', extra_tags='profile')
+            return redirect('dashboard')
+        except Exception:
+            messages.error(request, 'Unable to save profile. Please try again.', extra_tags='profile')
+
+    return render(request, 'profile_edit.html', {'form': form})
 
 
 @login_required
@@ -258,6 +309,50 @@ def message_thread(request, pk: int):
                     ri = ReplyImage(reply=r)
                     ri.image = f
                     ri.save()
+
+                # Notify the other party that a new reply exists (registered users get an email)
+                try:
+                    # If the original message belongs to a registered user and the replier
+                    # is not the same user, send that user an email notifying them of the reply.
+                    if (
+                        msg.user
+                        and msg.user.email
+                        and (not request.user or msg.user != request.user)
+                    ):
+                        notify_subject = (
+                            "New reply to your message: "
+                            f"{msg.get_subject_display()}"
+                        )
+                        thread_url = request.build_absolute_uri(
+                            reverse('message_thread', args=[msg.pk])
+                        )
+                        excerpt = r.body[:200] + ('...' if len(r.body) > 200 else '')
+                        notify_text = (
+                            f"Hi {msg.name or msg.username},\n\n"
+                            "You have a new reply to your message on {site_name}.\n\n"
+                            f"Reply excerpt:\n{excerpt}\n\n"
+                            f"View the conversation: {thread_url}\n\n"
+                            "If you no longer wish to receive these notifications, reply to the thread."
+                        )
+                        try:
+                            send_mail(
+                                notify_subject,
+                                notify_text.format(
+                                    site_name=getattr(settings, 'SITE_NAME', 'the site')
+                                ),
+                                settings.DEFAULT_FROM_EMAIL,
+                                [msg.user.email],
+                                fail_silently=True,
+                            )
+                        except Exception:
+                            # swallow email errors; do not block reply creation
+                            pass
+
+                    # If the message was from a guest (no user) and a staff/owner replied, the existing
+                    # guest-email flow (above) will notify the guest; nothing extra needed here.
+                except Exception:
+                    # best-effort notify; ignore failures
+                    pass
 
                 # mark message as replied when owner/staff sends a reply
                 if not msg.replied:
@@ -658,6 +753,7 @@ def create_listing(request):
         'thumb': request.GET.get('thumb', ''),
         # Do not prefill price or condition from GET params to avoid unintended injection via links
         'price': '',
+        'stock': '',
         'featured': False,
     }
 
@@ -713,6 +809,13 @@ def create_listing(request):
         except Exception:
             price_val = None
 
+        # parse stock if provided
+        stock_val = None
+        try:
+            stock_val = int(pdata.get('stock')) if pdata.get('stock') not in (None, '') else None
+        except Exception:
+            stock_val = None
+
         listing = Listing.objects.create(
             artist=pdata.get('artist', ''),
             title=pdata.get('title', ''),
@@ -724,6 +827,7 @@ def create_listing(request):
             price=price_val,
             # Use the release_id (if any) as the resource reference rather than accepting arbitrary resource_url via GET
             resource_url=str(release_id) if release_id else '',
+            stock=stock_val,
             thumb=pdata.get('thumb', ''),
             created_by=request.user if request.user.is_authenticated else None,
             featured=featured_flag,
@@ -762,6 +866,44 @@ def listing_list(request):
     return render(request, 'listing_list.html', {'listings': listings})
 
 
+@login_required
+@staff_required
+def listing_quick_update(request, pk: int):
+    """Quick update for price and stock from the manage listings list view.
+
+    Expects POST with 'price' and 'stock' fields. Redirects back to listing_list.
+    """
+    from .models import Listing
+    if request.method != 'POST':
+        return redirect('listing_list')
+
+    listing = get_object_or_404(Listing, pk=pk)
+    price_val = None
+    stock_val = None
+    try:
+        p = request.POST.get('price', '').strip()
+        price_val = float(p) if p not in (None, '') else None
+    except Exception:
+        price_val = listing.price
+
+    s = request.POST.get('stock', '').strip()
+    try:
+        stock_val = int(s) if s not in (None, '') else None
+    except Exception:
+        stock_val = None
+
+    # Update fields
+    try:
+        listing.price = price_val
+        listing.stock = stock_val
+        listing.save(update_fields=['price', 'stock'])
+        messages.success(request, 'Listing updated.', extra_tags='manage')
+    except Exception:
+        messages.error(request, 'Unable to update listing.', extra_tags='manage')
+
+    return redirect('listing_list')
+
+
 class ListingForm(forms.ModelForm):
     class Meta:
         from .models import Listing
@@ -769,7 +911,7 @@ class ListingForm(forms.ModelForm):
         model = Listing
         fields = [
             'artist', 'title', 'year', 'country', 'catalog_number', 'formats',
-            'release_notes', 'price', 'condition', 'thumb', 'featured'
+            'release_notes', 'price', 'condition', 'thumb', 'featured', 'stock'
         ]
 
 
@@ -863,9 +1005,15 @@ def listing_toggle_featured(request, pk: int):
 
     obj = get_object_or_404(Listing, pk=pk)
     if request.method == 'POST':
-        obj.featured = not bool(obj.featured)
-        obj.save()
-        messages.success(request, 'Listing updated')
+        # Toggle featured, but prevent featuring when stock == 0
+        new_featured = not bool(obj.featured)
+        if new_featured and obj.stock == 0:
+            # Do not allow featuring an out-of-stock item
+            messages.error(request, 'Cannot feature an item with 0 stock.', extra_tags='manage')
+        else:
+            obj.featured = new_featured
+            obj.save()
+            messages.success(request, 'Listing updated')
     return redirect(reverse('listing_list'))
 
 
@@ -877,7 +1025,15 @@ def store_list(request):
     title_q = request.GET.get('title', '').strip()
     format_q = request.GET.get('format', '').strip()
 
-    featured = Listing.objects.filter(featured=True).order_by('-created_at')[:8]
+    # Only include featured items that are not explicitly out of stock
+    try:
+        from django.db import models as djmodels
+        featured = Listing.objects.filter(featured=True).filter(
+            djmodels.Q(stock__isnull=True) | djmodels.Q(stock__gt=0)
+        ).order_by('-created_at')[:8]
+    except Exception:
+        # If the DB schema doesn't yet have stock, fall back
+        featured = Listing.objects.filter(featured=True).order_by('-created_at')[:8]
 
     # Previously we excluded featured items from the All listings section to
     # avoid duplicate DOM nodes. Templates now render unique overlay ids so
@@ -892,6 +1048,14 @@ def store_list(request):
     if format_q:
         qs = qs.filter(formats__icontains=format_q)
 
+    # Hide listings that are explicitly out of stock (stock == 0)
+    try:
+        from django.db import models as djmodels
+        qs = qs.filter(djmodels.Q(stock__isnull=True) | djmodels.Q(stock__gt=0))
+    except Exception:
+        # If the DB schema doesn't have stock yet, ignore the filter
+        pass
+
     listings = qs
 
     context = {
@@ -902,3 +1066,398 @@ def store_list(request):
         'format_q': format_q,
     }
     return render(request, 'store_list.html', context)
+
+
+# Basket and Stripe integration (session-backed basket + Stripe Checkout)
+def _get_session_basket(request):
+    """Return the basket dict stored in session (listing_id -> quantity)."""
+    return request.session.setdefault('basket', {})
+
+
+def _get_basket_map(request):
+    """Return a mapping of listing_id -> quantity for the current request.
+
+    If the user is authenticated, return the persistent basket contents from DB.
+    Otherwise return the session-backed basket dict.
+    """
+    if request.user.is_authenticated:
+        try:
+            from .models import BasketItem
+            items = BasketItem.objects.filter(basket__user=request.user).values_list('listing_id', 'quantity')
+            return {str(lid): qty for lid, qty in items}
+        except Exception:
+            return {}
+    else:
+        # Clean session-backed basket by removing items that no longer exist
+        # or have been set to out-of-stock (stock == 0). Mutate the session
+        # in-place so subsequent requests see the cleaned basket.
+        sb = _get_session_basket(request)
+        if not sb:
+            return sb
+        from .models import Listing
+        changed = False
+        for lid in list(sb.keys()):
+            try:
+                listing = Listing.objects.get(pk=int(lid))
+                # If stock is defined and zero, remove from session basket
+                if listing.stock is not None and listing.stock == 0:
+                    del sb[lid]
+                    changed = True
+            except Exception:
+                # Remove stale ids
+                try:
+                    del sb[lid]
+                    changed = True
+                except Exception:
+                    pass
+        if changed:
+            try:
+                request.session.modified = True
+            except Exception:
+                pass
+        return sb
+
+
+def basket_view(request):
+    from .models import Listing
+    basket = _get_basket_map(request)
+    items = []
+    total = 0
+    for lid, qty in list(basket.items()):
+        try:
+            listing = Listing.objects.get(pk=int(lid))
+        except Exception:
+            # remove stale ids
+            try:
+                del request.session['basket'][lid]
+                request.session.modified = True
+            except Exception:
+                pass
+            continue
+        qty = int(qty)
+        price = listing.price or 0
+        line_total = price * qty
+        items.append({'listing': listing, 'quantity': qty, 'line_total': line_total})
+        total += line_total
+
+    return render(request, 'basket.html', {'items': items, 'total': total})
+
+
+def basket_add(request, listing_id: int):
+    """Add one quantity of a listing to the session basket. Expects POST."""
+    from django.http import JsonResponse
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    if request.method != 'POST':
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'POST required.'}, status=405)
+        return redirect('store')
+    key = str(listing_id)
+    # Check stock before adding
+    from .models import Listing
+    try:
+        listing = Listing.objects.get(pk=listing_id)
+    except Exception:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'Unknown item.'}, status=404)
+        messages.error(request, 'Unknown item.', extra_tags='basket')
+        return redirect('store')
+
+    # If stock is defined and zero -> cannot add
+    if listing.stock is not None and listing.stock == 0:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'This item is out of stock.'}, status=400)
+        messages.error(request, 'This item is out of stock.', extra_tags='basket')
+        return redirect('basket')
+
+    if request.user.is_authenticated:
+        # Persist into DB
+        try:
+            from .models import Basket, BasketItem
+            from django.db import transaction
+            basket, _ = Basket.objects.get_or_create(user=request.user)
+            with transaction.atomic():
+                bi, created = BasketItem.objects.get_or_create(
+                    basket=basket,
+                    listing_id=listing_id,
+                    defaults={'quantity': 1}
+                )
+                if not created:
+                    # Check we won't exceed stock
+                    new_qty = bi.quantity + 1
+                    if listing.stock is not None and new_qty > listing.stock:
+                        if is_ajax:
+                            return JsonResponse({'status': 'error', 'message': 'Not enough stock available.'}, status=400)
+                        messages.error(request, 'Not enough stock available.', extra_tags='basket')
+                        return redirect('basket')
+                    bi.quantity = new_qty
+                    bi.save(update_fields=['quantity'])
+        except Exception:
+            # fallback to session
+            sb = _get_session_basket(request)
+            sb[key] = int(sb.get(key, 0)) + 1
+            request.session.modified = True
+    else:
+        basket = _get_session_basket(request)
+        # Check session quantity vs stock
+        cur = int(basket.get(key, 0))
+        newq = cur + 1
+        if listing.stock is not None and newq > listing.stock:
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': 'Not enough stock available.'}, status=400)
+            messages.error(request, 'Not enough stock available.', extra_tags='basket')
+            return redirect('basket')
+        basket[key] = newq
+        request.session.modified = True
+    if is_ajax:
+        # return the updated basket count so the frontend can update the badge
+        try:
+            bm = _get_basket_map(request) or {}
+            total_count = sum(int(v) for v in bm.values())
+        except Exception:
+            total_count = 0
+        return JsonResponse({'status': 'ok', 'message': 'Added to basket.', 'count': total_count})
+    messages.success(request, 'Added to basket.', extra_tags='basket')
+    return redirect('basket')
+
+
+def basket_remove(request, listing_id: int):
+    """Remove a listing from the basket. Expects POST."""
+    if request.method != 'POST':
+        return redirect('basket')
+    key = str(listing_id)
+    if request.user.is_authenticated:
+        try:
+            from .models import BasketItem
+            BasketItem.objects.filter(basket__user=request.user, listing_id=listing_id).delete()
+            messages.success(request, 'Removed from basket.', extra_tags='basket')
+        except Exception:
+            messages.error(request, 'Unable to remove item from basket.', extra_tags='basket')
+    else:
+        basket = _get_session_basket(request)
+        if key in basket:
+            try:
+                del basket[key]
+                request.session.modified = True
+                messages.success(request, 'Removed from basket.', extra_tags='basket')
+            except Exception:
+                messages.error(request, 'Unable to remove item from basket.', extra_tags='basket')
+    return redirect('basket')
+
+
+def basket_checkout(request):
+    """Create a Stripe Checkout session for the basket and redirect the user.
+
+    This view expects the Stripe secret key to be present in settings. It will
+    redirect the browser to the hosted checkout page.
+    """
+    import stripe
+
+    basket = _get_basket_map(request)
+    if not basket:
+        messages.error(request, 'Your basket is empty.', extra_tags='basket')
+        return redirect('basket')
+
+    # Build line items from listings
+    from .models import Listing
+    stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
+    currency = getattr(settings, 'STRIPE_CURRENCY', 'gbp')
+    line_items = []
+    for lid, qty in basket.items():
+        try:
+            listing = Listing.objects.get(pk=int(lid))
+        except Exception:
+            continue
+        unit_amount = int((listing.price or 0) * 100)
+        # Stripe requires positive amounts
+        if unit_amount <= 0:
+            continue
+        line_items.append({
+            'price_data': {
+                'currency': currency,
+                'product_data': {'name': f"{listing.artist} - {listing.title}"},
+                'unit_amount': unit_amount,
+            },
+            'quantity': int(qty),
+        })
+
+    if not line_items:
+        messages.error(request, 'No payable items in basket.', extra_tags='basket')
+        return redirect('basket')
+
+    try:
+        import json
+        # If Stripe isn't configured for local/dev, shortcut to success so
+        # developers can test the flow without real Stripe credentials.
+        if not getattr(settings, 'STRIPE_SECRET_KEY', ''):
+            # Clear session basket for guests and redirect to success for dev
+            try:
+                request.session['basket'] = {}
+                request.session.modified = True
+            except Exception:
+                pass
+            return redirect(reverse('basket_success') + '?session_id=dev')
+
+        # Attach basket as metadata so the webhook can reconstruct order items
+        metadata = {'basket': json.dumps(basket)}
+        create_kwargs = dict(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            success_url=request.build_absolute_uri(reverse('basket_success')) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=request.build_absolute_uri(reverse('basket_cancel')),
+            metadata=metadata,
+        )
+        # If user is authenticated, include client_reference_id to link to DB basket/user
+        if request.user and request.user.is_authenticated:
+            create_kwargs['client_reference_id'] = str(request.user.pk)
+
+        session = stripe.checkout.Session.create(**create_kwargs)
+        # Redirect to the hosted Checkout page
+        return redirect(session.url, code=303)
+    except Exception as e:
+        messages.error(request, f'Unable to create Stripe session: {e}', extra_tags='basket')
+        return redirect('basket')
+
+
+def basket_success(request):
+    # Clear the basket for now; a webhook should be used to reliably fulfill orders
+    session_id = request.GET.get('session_id')
+    try:
+        request.session['basket'] = {}
+        request.session.modified = True
+    except Exception:
+        pass
+    return render(request, 'basket_success.html', {'session_id': session_id})
+
+
+def basket_cancel(request):
+    return render(request, 'basket_cancel.html')
+
+
+def stripe_webhook(request):
+    """Basic Stripe webhook handler. Verify signature when STRIPE_WEBHOOK_SECRET is set.
+
+    Currently this handler acknowledges events and does not create Orders.
+    It's a safe place to extend fulfillment logic later.
+    """
+    import stripe
+    import json
+    from django.http import HttpResponse
+    payload = request.body
+    sig = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+    secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', '')
+    try:
+        if secret:
+            event = stripe.Webhook.construct_event(payload, sig, secret)
+        else:
+            # If no webhook secret configured, fall back to parsing the JSON body
+            event = json.loads(payload)
+    except Exception:
+        return HttpResponse(status=400)
+
+    # Handle a completed Checkout session
+    try:
+        etype = event.get('type') if isinstance(event, dict) else getattr(event, 'type', None)
+        if etype == 'checkout.session.completed':
+            # Create an Order record from the metadata (preferred) or by
+            # fetching line_items from Stripe as a fallback.
+            try:
+                data = event.get('data', {}).get('object', {}) if isinstance(event, dict) else getattr(event, 'data', None) and getattr(event.data, 'object', {})
+                session_id = data.get('id') if isinstance(data, dict) else getattr(data, 'id', None)
+                metadata = data.get('metadata') if isinstance(data, dict) else None
+                basket_map = None
+                if metadata and metadata.get('basket'):
+                    import json as _json
+                    try:
+                        basket_map = _json.loads(metadata.get('basket'))
+                    except Exception:
+                        basket_map = None
+
+                # Fallback: retrieve session and expand line_items
+                if not basket_map and session_id:
+                    try:
+                        sess = stripe.checkout.Session.retrieve(session_id, expand=['line_items', 'customer_details'])
+                        # line_items is an object with data list
+                        li = getattr(sess, 'line_items', None) or (sess.get('line_items') if isinstance(sess, dict) else None)
+                        items_list = []
+                        if li:
+                            for item in (li.data if hasattr(li, 'data') else (li.get('data') if isinstance(li, dict) else [])):
+                                qty = int(item.get('quantity') or getattr(item, 'quantity', 0))
+                                name = item.get('description') or item.get('price', {}).get('product', '')
+                                items_list.append({'name': name, 'quantity': qty})
+                        # We don't have listing ids here; downstream code will try to match by name.
+                    except Exception:
+                        items_list = []
+
+                # Create Order in DB
+                from django.apps import apps
+                Order = apps.get_model('accounts', 'Order')
+                OrderItem = apps.get_model('accounts', 'OrderItem')
+                Listing = apps.get_model('accounts', 'Listing')
+
+                # Determine user if client_reference_id present
+                client_ref = data.get('client_reference_id') if isinstance(data, dict) else None
+                user_obj = None
+                if client_ref:
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    try:
+                        user_obj = User.objects.filter(pk=int(client_ref)).first()
+                    except Exception:
+                        user_obj = None
+
+                order = Order.objects.create(user=user_obj, stripe_session_id=session_id)
+
+                total = 0
+                # If we have a basket_map (listing_id -> qty) use that
+                if basket_map:
+                    for lid, qty in basket_map.items():
+                        try:
+                            l = Listing.objects.filter(pk=int(lid)).first()
+                            qty = int(qty)
+                            unit_price = l.price or 0 if l else 0
+                            OrderItem.objects.create(order=order, listing=l, quantity=qty, unit_price=unit_price)
+                            total += (unit_price * qty)
+                            # decrement stock if applicable
+                            if l and l.stock is not None:
+                                l.stock = max(0, l.stock - qty)
+                                l.save(update_fields=['stock'])
+                        except Exception:
+                            continue
+                else:
+                    # Best-effort: create order items from items_list by matching listing title/name
+                    for it in items_list:
+                        try:
+                            name = it.get('name') or ''
+                            qty = int(it.get('quantity') or 0)
+                            # match listing by artist - title substring
+                            l = Listing.objects.filter(artist__icontains=name.split(' - ')[0] if ' - ' in name else name).first()
+                            unit_price = l.price or 0 if l else 0
+                            OrderItem.objects.create(order=order, listing=l, quantity=qty, unit_price=unit_price)
+                            total += (unit_price * qty)
+                            if l and l.stock is not None:
+                                l.stock = max(0, l.stock - qty)
+                                l.save(update_fields=['stock'])
+                        except Exception:
+                            continue
+
+                # Mark order paid
+                order.total_amount = total
+                order.paid = True
+                order.save(update_fields=['total_amount', 'paid'])
+
+                # Remove persistent basket for this user if present
+                if user_obj:
+                    try:
+                        Basket = apps.get_model('accounts', 'Basket')
+                        BasketItem = apps.get_model('accounts', 'BasketItem')
+                        BasketItem.objects.filter(basket__user=user_obj).delete()
+                    except Exception:
+                        pass
+            except Exception:
+                # swallow webhook errors to avoid 500 responses
+                pass
+    except Exception:
+        pass
+
+    return HttpResponse(status=200)

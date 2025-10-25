@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Edit profile - Alan's Albums{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>Edit profile</h1>
+  <div class="card my-3">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% load form_extras %}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field|add_class:"form-control" }}
+            {% if field.help_text %}
+              {% if field.name == 'username' %}
+                <div class="form-text" style = "color: var(--link-accent)">{{ field.help_text }}</div>
+              {% else %}
+                <div class="form-text">{{ field.help_text }}</div>
+              {% endif %}
+            {% endif %}
+            {% for err in field.errors %}
+              <div class="text-danger small">{{ err }}</div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <div class="d-flex align-items-center">
+          <button class="button-primary">Save</button>
+          <a class="btn btn-outline-secondary ms-2" href="{% url 'dashboard' %}">Cancel</a>
+          <a class="btn btn-link ms-3" href="{% url 'password_change' %}">Change password</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

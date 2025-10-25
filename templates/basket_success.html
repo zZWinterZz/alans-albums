@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Order complete{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1>Payment successful</h1>
+  <p>Thank you — your payment was successful. Your session id: {{ session_id }}</p>
+  <p>We'll be in touch with next steps.</p>
+  <a href="/" class="button-primary">Home</a>
+</div>
+{% endblock %}

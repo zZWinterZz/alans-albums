@@ -2,6 +2,7 @@
 {% block title %}Dashboard - Alan's Albums{% endblock %}
 {% block content %}
 <div class="container">
+  {% block messages %}{% endblock %}
   <div class="d-flex justify-content-end mb-3">
     <label for="scheme-select" class="small mb-0 me-2 align-self-center">Theme</label>
     <select id="scheme-select" class="form-select form-select-sm d-inline-block" style="width:160px" data-schemes="Scheme-1,Scheme-2,Scheme-3,Scheme-4,Scheme-5,Scheme-6,Scheme-7,Scheme-8,Scheme-9,Scheme-10,Scheme-11,Scheme-12,Scheme-13,Scheme-14">
@@ -22,7 +23,41 @@
     </select>
   </div>
 
-  <h1>Dashboard (placeholder)</h1>
-  <p>This is a placeholder dashboard for signed-in users.</p>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Dashboard</h1>
+    <div>
+      <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm me-2">Edit profile</a>
+    </div>
+  </div>
+
+  {% if orders %}
+    <h2 class="h5">Recent orders</h2>
+    <div class="table-responsive mb-4">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Paid</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td>#{{ o.pk }}</td>
+            <td>{{ o.created_at|date:"Y-m-d H:i" }}</td>
+            <td>£{{ o.total_amount }}</td>
+            <td>{% if o.paid %}Yes{% else %}No{% endif %}</td>
+            <td><a class="btn btn-sm btn-outline-secondary" href="#">Details</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">You have no orders yet.</p>
+  {% endif %}
 </div>
 {% endblock %}

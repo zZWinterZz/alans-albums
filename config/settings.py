@@ -67,6 +67,7 @@ TEMPLATES = [
                 # Provide SITE_NAME to templates (defaults to 'alansalbums')
                 "config.context_processors.site",
                 "accounts.context_processors.messages_count",
+                "accounts.context_processors.basket_count",
             ],
         },
     },
@@ -163,4 +164,11 @@ if not DEBUG:
 
     # Prevent the browser from attempting to guess the content type
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Stripe configuration (read from environment). Leave blank for local/dev.
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+# Default currency for Stripe prices (ISO currency code, e.g. 'gbp' or 'usd')
+STRIPE_CURRENCY = os.environ.get('STRIPE_CURRENCY', 'gbp')
 

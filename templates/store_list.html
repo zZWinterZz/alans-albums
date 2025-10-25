@@ -5,6 +5,10 @@
 {% block content %}
 <div class="container mt-4">
   <h1 class="mb-3">Store</h1>
+  <style>
+    /* Price box width for store list cards */
+    .price-box { display:inline-block; width:66px; text-align:center; }
+  </style>
 
   {% if featured %}
   <h4 class="mb-2">Featured</h4>
@@ -17,27 +21,37 @@
               <div class="fw-semibold">{{ l.artist }}</div>
               <div>{{ l.title }}</div>
               <div class="small">{{ l.formats }}</div>
-              <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% endif %}</div>
-              <div class="mt-2 d-flex gap-2 align-items-center">
-                <button class="btn btn-sm button-primary">Add to basket</button>
+              <div class="mt-2 fw-semibold">
+                {% if l.price %}<span class="price-box">£ {{ l.price }}</span>{% endif %}
+              </div>
+              <div class="mt-2 d-grid gap-2">
+                {% comment %} Order: Notes, Check condition, Add to basket (stacked full width) {% endcomment %}
+                {% if l.release_notes %}
+                  <div class="position-relative notes-container">
+                    {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-featured' %}
+                    <button class="button-primary w-100 notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="featured" aria-controls="{{ oid }}">Notes</button>
+                    <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="featured">
+                      <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                    </div>
+                    {% endwith %}
+                  </div>
+                {% endif %}
+
                 {% if l.images.all %}
-                  <button class="btn btn-sm button-primary check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
+                  <button class="button-primary w-100 check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
                   <div class="listing-images d-none" aria-hidden="true">
                     {% for img in l.images.all %}
                       <img src="{{ img.image.url }}" alt="{{ img.caption|default:'' }}" class="img-fluid">
                     {% endfor %}
                   </div>
                 {% endif %}
-                {% if l.release_notes %}
-                  <div class="position-relative notes-container">
-                    {% comment %} Featured overlay id includes suffix to keep it unique when the same listing also appears below {% endcomment %}
-                    {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-featured' %}
-                    <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="featured" aria-controls="{{ oid }}">Notes</button>
-                    <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="featured">
-                      <div class="card card-body small text-primary">{{ l.release_notes }}</div>
-                    </div>
-                    {% endwith %}
-                  </div>
+
+                {% if l.stock is not None and l.stock == 0 %}
+                  <button class="btn btn-outline-light w-100" disabled>Out of stock</button>
+                {% else %}
+                  <form method="post" action="{% url 'basket_add' l.pk %}" class="add-to-basket-form">{% csrf_token %}
+                    <button class="button-primary w-100">Add to basket</button>
+                  </form>
                 {% endif %}
               </div>
             </div>
@@ -66,29 +80,39 @@
             <div class="fw-semibold">{{ l.artist }}</div>
             <div>{{ l.title }}</div>
             <div class="small">{{ l.formats }}</div>
-            <div class="mt-2 fw-semibold">{% if l.price %}£ {{ l.price }}{% endif %}</div>
-            <div class="mt-2 d-flex gap-2 align-items-center">
-              <button class="btn btn-sm button-primary">Add to basket</button>
-              {% if l.images.all %}
-                <button class="btn btn-sm button-primary check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
-                <div class="listing-images d-none" aria-hidden="true">
-                  {% for img in l.images.all %}
-                    <img src="{{ img.image.url }}" alt="{{ img.caption|default:'' }}" class="img-fluid">
-                  {% endfor %}
-                </div>
-              {% endif %}
-              {% if l.release_notes %}
-                <div class="position-relative notes-container">
-                  {# Make overlay id unique per card instance in the loop using the loop index #}
-                  {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-all-'|add:forloop.counter0 %}
-                  <button class="btn btn-sm button-primary notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="all" aria-controls="{{ oid }}">Notes</button>
-                  <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="all">
-                    <div class="card card-body small text-primary">{{ l.release_notes }}</div>
-                  </div>
-                  {% endwith %}
-                </div>
-              {% endif %}
+            <div class="mt-2 fw-semibold">
+              {% if l.price %}<span class="price-box">£ {{ l.price }}</span>{% endif %}
             </div>
+              <div class="mt-2 d-grid gap-2">
+                {% comment %} Order: Notes, Check condition, Add to basket (stacked full width) {% endcomment %}
+                {% if l.release_notes %}
+                  <div class="position-relative notes-container">
+                    {% with oid='manage-notes-'|add:l.pk|stringformat:"s"|add:'-all-'|add:forloop.counter0 %}
+                    <button class="button-primary w-100 notes-toggle" type="button" data-release-id="manage-{{ l.pk }}" data-overlay-id="{{ oid }}" data-section="all" aria-controls="{{ oid }}">Notes</button>
+                    <div class="notes-overlay d-none" id="{{ oid }}" data-release-pk="{{ l.pk }}" data-section="all">
+                      <div class="card card-body small text-primary">{{ l.release_notes }}</div>
+                    </div>
+                    {% endwith %}
+                  </div>
+                {% endif %}
+
+                {% if l.images.all %}
+                  <button class="button-primary w-100 check-condition-btn" type="button" data-listing-id="{{ l.pk }}" aria-haspopup="dialog">Check condition</button>
+                  <div class="listing-images d-none" aria-hidden="true">
+                    {% for img in l.images.all %}
+                      <img src="{{ img.image.url }}" alt="{{ img.caption|default:'' }}" class="img-fluid">
+                    {% endfor %}
+                  </div>
+                {% endif %}
+
+                {% if l.stock is not None and l.stock == 0 %}
+                  <button class="btn btn-outline-light w-100" disabled>Out of stock</button>
+                {% else %}
+                  <form method="post" action="{% url 'basket_add' l.pk %}" class="add-to-basket-form">{% csrf_token %}
+                    <button class="button-primary w-100">Add to basket</button>
+                  </form>
+                {% endif %}
+              </div>
           </div>
         </div>
       </div>

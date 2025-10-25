@@ -30,14 +30,17 @@
   .thumb-item .thumb-overlay i{color:var(--background);font-size:18px}
   .thumb-item.selected .thumb-overlay{background:color-mix(in srgb, var(--link-accent) 40%, transparent);opacity:1;border:2px solid var(--link-accent);box-shadow:0 6px 18px rgba(0,0,0,0.12)}
   /* Price displayed with £ inside the input field */
-  .price-with-pound { position: relative; display: inline-block; max-width: 180px; }
+  /* Make the price column a fixed width so the visual inspector box matches
+    the input. The .price-with-pound fills that column. */
+  .listing-edit .price-col { width: 110px; }
+  .price-with-pound { position: relative; display: block; width: 100%; }
     .price-with-pound .pound { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-primary); pointer-events: none; opacity: 0.95; font-weight: 500; z-index:2; font-size:0.95rem; }
     .price-with-pound .price-input,
       .price-with-pound input { padding-left: 52px !important; background: transparent; color: var(--text-primary); border: 1px solid var(--text-primary); border-radius: .375rem; min-width: 0; box-sizing: border-box; position: relative; z-index:1; font-size:0.95rem; }
   /* Stronger parity with create page: ensure text input spacing and stacking match exactly */
   .price-with-pound input.price-input{
-    padding-left:52px !important;
-    font-size:0.95rem !important;
+    padding-left:26px !important;
+    font-size:0.95rem !important;    
     /* inherit default line-height so vertical padding matches the create form */
     box-sizing:border-box !important;
     background:transparent !important;
@@ -51,6 +54,43 @@
   .listing-edit .card-body input:not([type=checkbox]):not([type=file]),
   .listing-edit .card-body textarea,
   .listing-edit .card-body select{ border-radius: .375rem; }
+  /* Ensure the featured toggle stays constrained to its column and aligns
+     correctly like the screenshot: target a fixed-ish box (approx 75x52px),
+     center the switch vertically and scale the native input via transform so
+     it remains inside its box without overflowing. */
+  .listing-edit .featured-toggle-col {
+    min-width: 75px;
+    min-height: 52px;
+    padding: 6px 6px 4px 6px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .listing-edit .featured-toggle-col .form-label { font-size:0.95rem; margin-bottom:0.25rem; line-height:1; }
+  /* Keep the switch container simple and scale the actual checkbox so
+     the visible toggle remains inside the box used by your editor screenshot. */
+  /* Match inspector: slightly larger top margin and padding so the switch
+     sits visually in the same spot as in your screenshot. Also override
+     the surrounding form-check spacing to keep the box dimensions exact. */
+  .listing-edit .featured-toggle-col .form-switch { display: inline-block; margin-top: 0.2rem; padding-left: 0.5em; }
+  .listing-edit .featured-toggle-col .form-check {
+    padding-bottom: 0.9rem;
+    min-height: 1.5rem;
+    padding-left: 0.5rem;
+    margin-bottom: .125rem;
+  }
+  .listing-edit .featured-toggle-col .form-check-input {
+    /* Use transform scale so we don't change layout flow. Increase slightly
+       if you want a larger visible toggle. */
+    transform: scale(1.18);
+    transform-origin: left center;
+    margin-left: 0.12rem;
+  }
+  /* Nudge the stock input down slightly so it visually aligns with the
+     featured toggle in the editor inspector (matches screenshot request). */
+  .listing-edit input#id_stock.form-control.form-control-sm { margin-bottom: -1px !important; }
   </style>
   <form id="edit-listing-form" method="post" enctype="multipart/form-data">
     {% csrf_token %}
@@ -60,7 +100,7 @@
           <div class="col-12">
             {# Render all fields except featured, price, thumb, release_notes, condition, year, country and formats #}
             {% for field in form.visible_fields %}
-              {% if field.name != 'featured' and field.name != 'price' and field.name != 'thumb' and field.name != 'release_notes' and field.name != 'condition' and field.name != 'year' and field.name != 'country' and field.name != 'formats' and field.name != 'catalog_number' %}
+              {% if field.name != 'featured' and field.name != 'price' and field.name != 'thumb' and field.name != 'release_notes' and field.name != 'condition' and field.name != 'year' and field.name != 'country' and field.name != 'formats' and field.name != 'catalog_number' and field.name != 'stock' %}
                 <div class="mb-2">
                   <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}:</label>
                   {{ field }}
@@ -123,7 +163,10 @@
 
             {# Notes come after the cover block #}
             <div class="mb-2">
-              <label class="form-label">Notes:</label>
+              <div class="d-flex align-items-start justify-content-between">
+                <label class="form-label mb-0">Notes:</label>
+                <button type="button" id="clear-notes-btn" class="btn btn-sm btn-outline-secondary ms-2" title="Clear notes">Clear</button>
+              </div>
               {{ form.release_notes }}
               {% if form.release_notes.help_text %}<div class="small text-muted">{{ form.release_notes.help_text }}</div>{% endif %}
               {% if form.release_notes.errors %}<div class="text-danger small">{{ form.release_notes.errors.as_text }}</div>{% endif %}
@@ -138,22 +181,27 @@
 
             <div class="row mt-3">
               <div class="col">
-                <div class="d-flex align-items-center gap-5">
-                  <label class="form-label mb-0">Price:</label>
-                  <div class="form-check form-switch mb-0 d-flex align-items-center">
-                    <input class="form-check-input me-2" type="checkbox" id="id_featured_edit" name="featured" {% if listing.featured %}checked{% endif %}>
-                    <label class="form-check-label mb-0" for="id_featured_edit">Featured</label>
-                  </div>
-                </div>
-                <div class="mt-2">
-                  <div class="edit-price-group">
+                <div class="row g-3 align-items-center">
+                  <div class="col-auto price-col">
+                    <label class="form-label mb-1">Price</label>
                     <div class="price-with-pound">
                       <span class="pound">£</span>
                       <input type="text" name="{{ form.price.html_name }}" id="{{ form.price.id_for_label }}" value="{{ form.price.value }}" class="form-control price-input" aria-label="Price in pounds">
                     </div>
+                    {% if form.price.help_text %}<div class="small text-muted">{{ form.price.help_text }}</div>{% endif %}
+                    {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors.as_text }}</div>{% endif %}
                   </div>
-                  {% if form.price.help_text %}<div class="small text-muted">{{ form.price.help_text }}</div>{% endif %}
-                  {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors.as_text }}</div>{% endif %}
+                  <div class="col-auto">
+                    <label class="form-label mb-1" style="font-size:0.95rem;">Stock</label>
+                    <input type="number" name="{{ form.stock.html_name }}" id="{{ form.stock.id_for_label }}" value="{{ form.stock.value }}" class="form-control form-control-sm" style="width:90px; font-size:0.95rem;">
+                    {% if form.stock.errors %}<div class="text-danger small">{{ form.stock.errors.as_text }}</div>{% endif %}
+                  </div>
+                  <div class="col-auto d-flex flex-column align-items-start featured-toggle-col">
+                    <label class="form-label mb-1">Featured</label>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="id_featured_edit" name="featured" {% if listing.featured %}checked{% endif %}>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -184,9 +232,13 @@
       </div>
     </div>
   </form>
-  <div class="d-flex gap-2 mt-3">
+  <div class="d-flex gap-2 mt-3 align-items-center">
     <button type="submit" form="edit-listing-form" class="button-primary">Save</button>
     <a href="{% url 'listing_list' %}" class="btn btn-secondary">Cancel</a>
+    <form method="post" action="{% url 'listing_delete' listing.pk %}" onsubmit="return confirm('Are you sure you want to permanently delete this listing? This cannot be undone.');" class="ms-auto">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-danger">Delete</button>
+    </form>
   </div>
 </div>
 <script>
@@ -281,6 +333,20 @@
       Array.from(input.files).forEach((f, i)=> preview.appendChild(makeThumb(f,i)));
     }
     input.addEventListener('change', render);
+  })();
+
+  // Clear notes button behaviour
+  (function(){
+    const clearBtn = document.getElementById('clear-notes-btn');
+    if(!clearBtn) return;
+    // Use the form field name to find the textarea rendered by Django.
+    const notesSelector = 'textarea[name="{{ form.release_notes.html_name }}"]';
+    const notesEl = document.querySelector(notesSelector);
+    clearBtn.addEventListener('click', function(){
+      if(!notesEl) return;
+      notesEl.value = '';
+      notesEl.focus();
+    });
   })();
 </script>
 {% endblock %}

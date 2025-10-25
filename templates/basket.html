@@ -1,8 +1,82 @@
 {% extends 'base.html' %}
 {% block title %}Basket - Alan's Albums{% endblock %}
+{% load static %}
 {% block content %}
-<div class="container">
-  <h1>Basket (placeholder)</h1>
-  <p>This is a placeholder basket page.</p>
+<div class="container mt-4">
+  <h1 class="mb-3 text-primary">Basket</h1>
+
+  <div class="row g-3">
+    <div class="col-12 col-md-8">
+      <div class="card">
+        <div class="card-body">
+          {% if items %}
+            <ul class="list-group list-group-flush basket-list">
+              {% for it in items %}
+                <li class="list-group-item bg-surface d-flex align-items-center gap-3">
+                  <div class="b-item-main d-flex flex-grow-1 gap-3 align-items-center">
+                    <div class="basket-thumb" style="width:72px;height:72px;flex:0 0 72px;">
+                      {% if it.listing.thumb %}
+                        <img src="{{ it.listing.thumb }}" alt="" class="img-fluid" style="width:72px;height:72px;object-fit:cover;border-radius:.5rem;" />
+                      {% else %}
+                        <img src="{% static 'images/Alansalbums.png' %}" alt="" class="img-fluid" style="width:72px;height:72px;object-fit:cover;border-radius:.5rem;" />
+                      {% endif %}
+                    </div>
+                    <div class="basket-info flex-grow-1">
+                      <div class="fw-semibold text-primary">{{ it.listing.artist }} — {{ it.listing.title }}</div>
+                      <div class="small text-muted">
+                        {% if it.listing.year %}{{ it.listing.year }}{% endif %}{% if it.listing.formats %} &middot; {{ it.listing.formats }}{% endif %}
+                        <br />Qty: {{ it.quantity }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="basket-controls text-end">
+                    <div class="fw-semibold text-primary">£ {{ it.line_total }}</div>
+                    <form method="post" action="{% url 'basket_remove' it.listing.pk %}">{% csrf_token %}
+                      <button class="btn btn-sm btn-link text-danger mt-2">Remove</button>
+                    </form>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="text-center py-5">
+              <p class="mb-3">Your basket is empty.</p>
+              <a href="{% url 'store' %}" class="button-primary">Back to store</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card d-flex flex-column" style="height:100%;">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title text-primary">Order summary</h5>
+          <div class="mt-2">
+            <div class="d-flex justify-content-between">
+              <div class="text-muted">Items</div>
+              <div class="text-primary">{{ items|length }}</div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+              <div class="text-muted">Subtotal</div>
+              <div class="text-primary">£ {{ total }}</div>
+            </div>
+            {# Placeholder for taxes/shipping if needed in future #}
+          </div>
+
+          <div class="mt-4 mb-2">
+            <form method="post" action="{% url 'basket_checkout' %}">{% csrf_token %}
+              <button class="button-primary w-100 py-2">Checkout</button>
+            </form>
+          </div>
+
+          <div class="mt-auto">
+            <a href="{% url 'store' %}" class="button-primary w-100 py-2">Back to store</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

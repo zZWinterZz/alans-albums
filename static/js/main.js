@@ -212,10 +212,9 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="iv-img-wrap">
               <img class="iv-img" src="" alt="" />
             </div>
-            <div class="iv-caption small text-muted mt-2"></div>
             <div class="iv-controls mt-2 d-flex gap-2 justify-content-center align-items-center">
               <button class="iv-prev btn btn-sm" aria-label="Previous image">‹</button>
-              <button class="iv-zoom-toggle btn btn-sm" aria-label="Toggle zoom">🔍</button>
+              <div class="iv-counter small text-muted">0 / 0</div>
               <button class="iv-next btn btn-sm" aria-label="Next image">›</button>
             </div>
           </div>
@@ -229,11 +228,11 @@ document.addEventListener('DOMContentLoaded', function(){
     const inner = viewer.querySelector('.iv-inner');
     const imgWrap = viewer.querySelector('.iv-img-wrap');
     const imgEl = viewer.querySelector('.iv-img');
-    const captionEl = viewer.querySelector('.iv-caption');
+  const captionEl = viewer.querySelector('.iv-counter');
     const btnClose = viewer.querySelector('.iv-close');
     const btnPrev = viewer.querySelector('.iv-prev');
     const btnNext = viewer.querySelector('.iv-next');
-    const btnZoom = viewer.querySelector('.iv-zoom-toggle');
+  // zoom toggle removed from UI — leave no btnZoom variable
     const backdrop = viewer.querySelector('.iv-backdrop');
 
     let images = [];
@@ -453,6 +452,41 @@ document.addEventListener('DOMContentLoaded', function(){
           }catch(e){}
             const naturalW = imgEl.naturalWidth || imgEl.width || 1600;
             const naturalH = imgEl.naturalHeight || imgEl.height || 900;
+            // On very small viewports prefer a cover-mode: fill the wrapper
+            // and use object-fit:cover so the image centers and doesn't
+            // produce letterbox bars or get pushed off-screen by transforms.
+            var isSmallViewport = false;
+            try{ isSmallViewport = (window.innerWidth && window.innerWidth <= 576); }catch(e){}
+            if(isSmallViewport){
+              // Configure wrapper to center the image and show it fully (no crop).
+              // Use object-fit: contain so the whole image is visible and not zoomed-in.
+              imgWrap.style.display = 'flex';
+              imgWrap.style.alignItems = 'center';
+              imgWrap.style.justifyContent = 'center';
+              imgWrap.style.position = 'relative';
+              imgWrap.style.overflow = 'hidden';
+
+              // Make the <img> fit the wrapper while preserving aspect ratio
+              imgEl.style.position = 'relative';
+              imgEl.style.display = 'block';
+              imgEl.style.margin = '0';
+              imgEl.style.left = '';
+              imgEl.style.top = '';
+              // Allow the image to scale down to fit the wrapper without cropping
+              imgEl.style.width = 'auto';
+              imgEl.style.height = '100%';
+              imgEl.style.maxWidth = '90vw';
+              imgEl.style.objectFit = 'contain';
+              imgEl.style.transform = 'none';
+              // Disable transform-based pan/zoom initial state
+              ivZoom = IV_MIN_ZOOM = 1;
+              ivOffsetX = 0; ivOffsetY = 0;
+              // update caption/preload and skip further transform calculations
+              captionEl.textContent = `${index+1} / ${images.length}`;
+              preload(index-1); preload(index+1);
+              return;
+            }
+
             // set intrinsic pixel size so transforms scale from natural dimensions
             imgEl.style.width = naturalW + 'px';
             imgEl.style.height = naturalH + 'px';
@@ -522,12 +556,7 @@ document.addEventListener('DOMContentLoaded', function(){
     backdrop.addEventListener('click', function(){ hideViewer(); });
     btnPrev.addEventListener('click', function(){ prevImage(); });
     btnNext.addEventListener('click', function(){ nextImage(); });
-    // hide zoom control for now (no zoom/pan behavior)
-    try{ btnZoom.style.display = 'none'; }catch(e){}
-
-    // Re-introduce map-style zoom/pan handlers (translate+scale) using
-    // zoomAtPoint / clampOffsets / applyTransform so zoom is pointer-centered.
-    try{ btnZoom.style.display = ''; }catch(e){}
+  // zoom control removed from UI; zoom via wheel/double-click still works
 
     // wheel to zoom (pointer-centered)
     imgWrap.addEventListener('wheel', function(ev){
@@ -599,33 +628,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
     });
 
-    // zoom toggle button: center zoom on viewport center
-    btnZoom.addEventListener('click', function(){
-      try{
-        const crect = imgWrap.getBoundingClientRect();
-        const cx = crect.width / 2;
-        const cy = crect.height / 2;
-        if(ivZoom <= IV_MIN_ZOOM + 0.0001){
-          zoomAtPoint(cx, cy, Math.min(2 / ivZoom, IV_MAX_ZOOM / ivZoom));
-        } else {
-          ivZoom = IV_MIN_ZOOM;
-          // If the image at min zoom fits the wrapper, center it explicitly
-          try{
-            const naturalW = imgEl.naturalWidth || imgEl.offsetWidth || 1000;
-            const naturalH = imgEl.naturalHeight || imgEl.offsetHeight || 600;
-            const cw = crect.width || Math.min(window.innerWidth, 900);
-            const ch = crect.height || Math.min(window.innerHeight, 700);
-            const scaledW = naturalW * ivZoom;
-            const scaledH = naturalH * ivZoom;
-            if (scaledW <= cw + 1 && scaledH <= ch + 1){
-              ivOffsetX = (cw - scaledW) / 2;
-              ivOffsetY = (ch - scaledH) / 2;
-            }
-          }catch(e){}
-          clampOffsets(); applyTransform();
-        }
-      }catch(e){}
-    });
+    // zoom toggle removed from UI
 
     // public open function
     function openViewer(list, start, trigger){
@@ -690,6 +693,93 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   // initialize image viewer once DOM is ready
   initImageViewer();
+  // Intercept add-to-basket forms and submit via AJAX, showing alerts instead of redirecting
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+  }
+  // Small site toast helper
+  function showToast(message, type='info', timeout=4000){
+    try{
+      const container = document.getElementById('site-toasts');
+      if(!container) return; // no-op if not present
+      const t = document.createElement('div');
+      t.className = 'site-toast ' + (type||'info');
+      t.setAttribute('role','status');
+      t.innerHTML = `<div class="toast-body">${String(message)}</div><button class="toast-close" aria-label="Close">×</button>`;
+      const closeBtn = t.querySelector('.toast-close');
+      closeBtn.addEventListener('click', function(){ try{ t.remove(); }catch(e){} });
+      container.appendChild(t);
+      // auto-dismiss
+      if(timeout && timeout > 0){ setTimeout(function(){ try{ t.remove(); }catch(e){} }, timeout); }
+    }catch(e){ console.error('showToast error', e); }
+  }
+  function initAddToBasketForms(){
+    function updateCartBadge(count){
+      try{
+        const cartIcon = document.querySelector('.cart-icon');
+        if(!cartIcon) return;
+        let badge = cartIcon.querySelector('.cart-badge');
+        if(!badge){
+          if(!count || Number(count) === 0) return;
+          badge = document.createElement('span');
+          badge.className = 'cart-badge';
+          badge.setAttribute('aria-hidden','true');
+          cartIcon.appendChild(badge);
+        }
+        badge.textContent = String(count);
+        // brief pulse animation
+        try{ badge.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.2)' }, { transform: 'scale(1)' }], { duration: 300 }); }catch(e){}
+      }catch(e){/* ignore */}
+    }
+    document.querySelectorAll('form.add-to-basket-form').forEach(function(form){
+      if(form._basketInit) return; form._basketInit = true;
+      form.addEventListener('submit', async function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        const action = form.getAttribute('action') || location.href;
+        const formData = new FormData(form);
+        try{
+          const resp = await fetch(action, {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRFToken': getCookie('csrftoken') || ''
+            },
+            body: formData,
+            credentials: 'same-origin'
+          });
+          // Try parse JSON if available
+          const contentType = resp.headers.get('content-type') || '';
+          if(contentType.indexOf('application/json') !== -1){
+            const data = await resp.json();
+            if(resp.ok && data && (data.status === 'ok' || data.success)){
+              showToast(data.message || 'Added to basket.', 'success');
+              if(typeof data.count !== 'undefined') updateCartBadge(data.count);
+            } else {
+              const msg = data && (data.message || data.error) ? (data.message || data.error) : 'Unable to add to basket.';
+              showToast(msg, 'error');
+              if(typeof data.count !== 'undefined') updateCartBadge(data.count);
+            }
+          } else {
+            // non-json response: fallback to location change when redirect needed
+            if(resp.redirected){
+              // follow redirect as last-resort
+              window.location = resp.url;
+            } else if(resp.ok){
+              showToast('Added to basket.', 'success');
+            } else {
+              showToast('Unable to add to basket.', 'error');
+            }
+          }
+        }catch(err){
+          console.error('add-to-basket error', err);
+          showToast('Unable to add to basket. Please try again.', 'error');
+        }
+      });
+    });
+  }
+  initAddToBasketForms();
   // Eagerly fetch formats_lines for all visible cards on the current page (concurrency-limited)
   (function(){
     const cards = Array.from(document.querySelectorAll('.card[data-release-id]'));

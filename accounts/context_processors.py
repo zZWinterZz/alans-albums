@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, Sum
 from .models import Message, Reply
 
 
@@ -35,3 +35,56 @@ def messages_count(request):
         total_unread = unread_replies + unread_messages
 
     return {'messages_count': total_unread}
+
+
+def basket_count(request):
+    """Provide a small basket_count for the navbar.
+
+    - For authenticated users: sum quantities in their persistent Basket (if any).
+    - For anonymous users: sum quantities in the session-backed 'basket' dict.
+
+    Returns an empty dict when zero to avoid rendering a badge with '0'.
+    """
+    total = 0
+    try:
+        if request.user and request.user.is_authenticated:
+            # Import BasketItem here to avoid circular imports at module load
+            from .models import BasketItem
+            agg = BasketItem.objects.filter(basket__user=request.user).aggregate(total_qty=Sum('quantity'))
+            total = int(agg.get('total_qty') or 0)
+        else:
+            session_basket = request.session.get('basket', {}) or {}
+            # session_basket is {listing_id: qty}; remove entries for deleted or
+            # out-of-stock listings so the count reflects available items only.
+            if session_basket:
+                from .models import Listing
+                changed = False
+                running = 0
+                for lid, v in list(session_basket.items()):
+                    try:
+                        listing = Listing.objects.get(pk=int(lid))
+                        if listing.stock is not None and listing.stock == 0:
+                            # remove from session
+                            del session_basket[lid]
+                            changed = True
+                            continue
+                        running += int(v)
+                    except Exception:
+                        try:
+                            del session_basket[lid]
+                            changed = True
+                        except Exception:
+                            pass
+                if changed:
+                    try:
+                        request.session.modified = True
+                    except Exception:
+                        pass
+                total = running
+            else:
+                total = 0
+    except Exception:
+        # On any error, don't break templates; return 0
+        total = 0
+
+    return {'basket_count': total} if total else {}

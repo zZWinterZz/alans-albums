@@ -36,6 +36,8 @@ class Listing(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     thumb = models.URLField(blank=True)
     resource_url = models.URLField(blank=True)
+    # Stock: None means unknown/unlimited; 0 means out of stock; positive=int available
+    stock = models.IntegerField(null=True, blank=True, help_text='Null = unlimited/unknown, 0 = out of stock')
     release_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,6 +49,39 @@ class Listing(models.Model):
 
     def __str__(self):
         return f"{self.artist} - {self.title} ({self.catalog_number})"
+
+    def save(self, *args, **kwargs):
+        """Ensure items with zero stock are not featured.
+
+        This centralizes the rule: any update that sets stock to 0 will
+        automatically clear the `featured` flag before saving.
+        """
+        try:
+            if self.stock == 0 and self.featured:
+                self.featured = False
+        except Exception:
+            # best-effort: don't block saves on unexpected errors
+            pass
+        # Capture previous stock to detect transitions to 0
+        prev_stock = None
+        if self.pk:
+            try:
+                prev_stock = Listing.objects.get(pk=self.pk).stock
+            except Exception:
+                prev_stock = None
+
+        super().save(*args, **kwargs)
+
+        # If stock was just set to zero, remove this listing from any persistent baskets.
+        try:
+            if self.stock == 0 and prev_stock != 0:
+                # Avoid direct import cycles by resolving the model via apps
+                from django.apps import apps
+                BasketItem = apps.get_model('accounts', 'BasketItem')
+                BasketItem.objects.filter(listing=self).delete()
+        except Exception:
+            # best-effort cleanup; don't prevent save on error
+            pass
 
 
 class ListingImage(models.Model):
@@ -183,3 +218,54 @@ class ReplyRead(models.Model):
     def mark_read(self):
         self.read_at = timezone.now()
         self.save(update_fields=['read_at'])
+
+
+class Basket(models.Model):
+    """Persistent basket per authenticated user."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='basket')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Basket for {self.user}"
+
+
+class BasketItem(models.Model):
+    basket = models.ForeignKey(Basket, related_name='items', on_delete=models.CASCADE)
+    listing = models.ForeignKey('Listing', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = (('basket', 'listing'),)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.listing}"
+
+
+class Order(models.Model):
+    """Basic Order record created after successful checkout."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    stripe_session_id = models.CharField(max_length=255, blank=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        who = self.user.username if self.user else 'guest'
+        return f"Order {self.pk} ({who}) - {'PAID' if self.paid else 'PENDING'}"
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
+    listing = models.ForeignKey('Listing', on_delete=models.SET_NULL, null=True)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def line_total(self):
+        return self.unit_price * self.quantity
+
+    def __str__(self):
+        return f"{self.quantity} x {self.listing} @ {self.unit_price}"
